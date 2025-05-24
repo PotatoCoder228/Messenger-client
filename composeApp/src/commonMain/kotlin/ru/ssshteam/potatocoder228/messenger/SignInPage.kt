@@ -128,7 +128,6 @@ fun SignInForm(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier
 ) {
-    val rowWidth = 200.dp
     var loginInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -179,7 +178,11 @@ fun SignInForm(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp),
                 onClick = {
                     scope.launch {
-                        signInRequest(UserAuthDTO(loginInput, passwordInput), navController, snackbarHostState)
+                        signInRequest(
+                            UserAuthDTO(loginInput, passwordInput),
+                            navController,
+                            snackbarHostState
+                        )
                     }
                 }) {
                 Text("Sign in")

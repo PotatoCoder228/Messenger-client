@@ -193,7 +193,11 @@ fun RegistrationForm(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp),
                 onClick = {
                     scope.launch {
-                        registrationRequest(UserAuthDTO(loginInput, passwordInput), navController, snackbarHostState)
+                        registrationRequest(
+                            UserAuthDTO(loginInput, passwordInput),
+                            navController,
+                            snackbarHostState
+                        )
                     }
                 }) {
                 Text("Registration")

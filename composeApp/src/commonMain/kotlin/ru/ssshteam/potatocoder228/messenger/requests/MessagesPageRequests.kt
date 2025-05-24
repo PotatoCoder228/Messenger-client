@@ -2,36 +2,32 @@ package ru.ssshteam.potatocoder228.messenger.requests
 
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
-import androidx.navigation.NavHostController
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.headers
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
-import ru.ssshteam.potatocoder228.messenger.PageRoutes
-import ru.ssshteam.potatocoder228.messenger.dto.UserAuthDTO
+import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
 import ru.ssshteam.potatocoder228.messenger.httpClient
 import ru.ssshteam.potatocoder228.messenger.httpHost
+import ru.ssshteam.potatocoder228.messenger.token
 
 class MessagesPageRequests {
     companion object {
 
         private suspend fun successAction(
-            navController: NavHostController, snackbarHostState: SnackbarHostState
+            snackbarHostState: SnackbarHostState
         ) {
-            snackbarHostState.showSnackbar(
-                message = "Registration success",
-                actionLabel = "Ok",
-                duration = SnackbarDuration.Short
-            )
-            navController.navigate(PageRoutes.SignInPage.route)
+
         }
 
         private suspend fun errorAction(
             httpResponse: HttpResponse, snackbarHostState: SnackbarHostState
         ) {
             snackbarHostState.showSnackbar(
-                message = "Registration error. Reason: ${httpResponse.status.description}, ${httpResponse.status.description}",
+                message = "Getting chats error. Reason: ${httpResponse.status.description}, ${httpResponse.status.description}",
                 actionLabel = "Ok",
                 duration = SnackbarDuration.Indefinite
             )
@@ -39,29 +35,33 @@ class MessagesPageRequests {
 
         private suspend fun exceptionAction(e: Throwable, snackbarHostState: SnackbarHostState) {
             snackbarHostState.showSnackbar(
-                message = "Registration error. Reason: ${e.message}",
+                message = "Getting chats error. Reason: ${e.message}",
                 actionLabel = "Ok",
                 duration = SnackbarDuration.Indefinite
             )
+            e.printStackTrace()
         }
 
-        suspend fun registrationRequest(
-            userAuthDTO: UserAuthDTO,
-            navController: NavHostController,
+        suspend fun getChatsRequest(
             snackbarHostState: SnackbarHostState
-        ) {
+        ): MutableList<ChatDTO> {
             try {
-                val httpResponse: HttpResponse = httpClient.post("$httpHost/auth/signup") {
+                val httpResponse: HttpResponse = httpClient.get("$httpHost/chats") {
+                    headers {
+                        header("Authorization", "Bearer ${token.token}")
+                    }
                     contentType(ContentType.Application.Json)
-                    setBody(userAuthDTO)
                 }
                 if (httpResponse.status.value in 200..299) {
-                    successAction(navController, snackbarHostState)
+                    successAction(snackbarHostState)
+                    return httpResponse.body()
                 } else {
                     errorAction(httpResponse, snackbarHostState)
+                    return mutableListOf()
                 }
             } catch (e: Throwable) {
                 exceptionAction(e, snackbarHostState)
+                return mutableListOf()
             }
         }
     }

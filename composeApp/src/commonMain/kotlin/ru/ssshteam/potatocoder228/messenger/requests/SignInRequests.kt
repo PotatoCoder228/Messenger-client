@@ -25,12 +25,12 @@ class SignInRequests {
             httpResponse: HttpResponse,
             navController: NavHostController
         ) {
-            var tokenDto : TokenDTO = httpResponse.body()
-            datastore.use{
-                datastore.saveCookie("token", tokenDto.token)
-                datastore.saveCookie("userId", tokenDto.userId.toString())
-            }
-            token = tokenDto.token
+            val tokenDto: TokenDTO = httpResponse.body()
+
+            datastore.saveCookie("token", tokenDto.token)
+            datastore.saveCookie("userId", tokenDto.userId.toString())
+
+            token = tokenDto
             navController.navigate(PageRoutes.MessagesPage.route)
         }
 
