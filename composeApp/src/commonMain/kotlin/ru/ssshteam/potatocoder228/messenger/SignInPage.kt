@@ -12,14 +12,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -40,7 +44,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import ru.ssshteam.potatocoder228.messenger.dto.UserAuthDTO
+import ru.ssshteam.potatocoder228.messenger.requests.SignInRequests.Companion.signInRequest
+
 
 sealed class SignInRoutes(val route: String) {
 
@@ -52,8 +60,24 @@ sealed class SignInRoutes(val route: String) {
 @Composable
 @Preview
 fun SignInPage(navController: NavHostController) {
-
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                text = { },
+                icon = { Icon(Icons.Outlined.Brightness6, contentDescription = "Brightness Mode") },
+
+                onClick = {
+                    scope.launch {
+
+                    }
+                }
+            )
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -66,8 +90,14 @@ fun SignInPage(navController: NavHostController) {
                 })
         },
     ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding), verticalArrangement = Arrangement.Center) {
-            Row(modifier = Modifier.fillMaxSize().align(CenterHorizontally),  horizontalArrangement = Arrangement.Center) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize().align(CenterHorizontally),
+                horizontalArrangement = Arrangement.Center
+            ) {
                 Column(
                     modifier = Modifier.align(
                         CenterVertically
@@ -80,6 +110,7 @@ fun SignInPage(navController: NavHostController) {
                     )
                     SignInForm(
                         navController,
+                        snackbarHostState,
                         Modifier.align(alignment = Alignment.CenterHorizontally)
                     )
                 }
@@ -94,6 +125,7 @@ fun SignInPage(navController: NavHostController) {
 @Preview
 fun SignInForm(
     navController: NavHostController,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier
 ) {
     val rowWidth = 200.dp
@@ -101,7 +133,7 @@ fun SignInForm(
     var passwordInput by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    Column(modifier=modifier, verticalArrangement = Arrangement.Center) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.Center) {
         ElevatedCard(
             elevation = CardDefaults.cardElevation(
                 defaultElevation = 6.dp
@@ -144,14 +176,16 @@ fun SignInForm(
                     }
                 })
             Button(
-                modifier = Modifier.align(CenterHorizontally).padding(10.dp,0.dp,10.dp,0.dp),
+                modifier = Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp),
                 onClick = {
-                    navController.navigate(PageRoutes.MessagesPage.route)
+                    scope.launch {
+                        signInRequest(UserAuthDTO(loginInput, passwordInput), navController, snackbarHostState)
+                    }
                 }) {
                 Text("Sign in")
             }
             TextButton(
-                modifier = Modifier.align(CenterHorizontally).padding(10.dp,0.dp,10.dp,0.dp),
+                modifier = Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp),
                 onClick = {
                     navController.navigate(PageRoutes.RegistrationPage.route)
                 }) {

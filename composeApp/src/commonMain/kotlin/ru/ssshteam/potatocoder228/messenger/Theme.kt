@@ -1,10 +1,14 @@
 package ru.ssshteam.potatocoder228.messenger
+
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 
 private val lightScheme = lightColorScheme(
@@ -237,10 +241,7 @@ private val highContrastDarkColorScheme = darkColorScheme(
 
 @Immutable
 data class ColorFamily(
-    val color: Color,
-    val onColor: Color,
-    val colorContainer: Color,
-    val onColorContainer: Color
+    val color: Color, val onColor: Color, val colorContainer: Color, val onColorContainer: Color
 )
 
 val unspecified_scheme = ColorFamily(
@@ -249,18 +250,19 @@ val unspecified_scheme = ColorFamily(
 
 @Composable
 fun AppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable() () -> Unit
+    darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable() () -> Unit
 ) {
-  val colorScheme = when {
-      darkTheme -> darkScheme
-      else -> lightScheme
-  }
+    val colorScheme by remember {
+        mutableStateOf(
+            when {
+                darkTheme -> darkScheme
+                else -> lightScheme
+            }
+        )
+    }
 
-  MaterialTheme(
-    colorScheme = colorScheme,
-    typography = AppTypography,
-    content = content
-  )
+    MaterialTheme(
+        colorScheme = colorScheme, typography = AppTypography, content = content
+    )
 }
 
