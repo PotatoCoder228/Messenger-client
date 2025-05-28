@@ -6,10 +6,14 @@ import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.headers
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
+import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
 import ru.ssshteam.potatocoder228.messenger.httpClient
 import ru.ssshteam.potatocoder228.messenger.httpHost
 import ru.ssshteam.potatocoder228.messenger.token
@@ -17,17 +21,11 @@ import ru.ssshteam.potatocoder228.messenger.token
 class MessagesPageRequests {
     companion object {
 
-        private suspend fun successAction(
-            snackbarHostState: SnackbarHostState
-        ) {
-
-        }
-
         private suspend fun errorAction(
             httpResponse: HttpResponse, snackbarHostState: SnackbarHostState
         ) {
             snackbarHostState.showSnackbar(
-                message = "Getting chats error. Reason: ${httpResponse.status.description}, ${httpResponse.status.description}",
+                message = "Error! Reason: ${httpResponse.status.description}, ${httpResponse.status.description}",
                 actionLabel = "Ok",
                 duration = SnackbarDuration.Indefinite
             )
@@ -35,16 +33,16 @@ class MessagesPageRequests {
 
         private suspend fun exceptionAction(e: Throwable, snackbarHostState: SnackbarHostState) {
             snackbarHostState.showSnackbar(
-                message = "Getting chats error. Reason: ${e.message}",
+                message = "Exception! Reason: ${e.message}",
                 actionLabel = "Ok",
                 duration = SnackbarDuration.Indefinite
             )
-            e.printStackTrace()
         }
 
         suspend fun getChatsRequest(
-            snackbarHostState: SnackbarHostState
-        ): MutableList<ChatDTO> {
+            snackbarHostState: SnackbarHostState,
+            onChatsChange: (ChatDTO) -> Unit,
+        ) {
             try {
                 val httpResponse: HttpResponse = httpClient.get("$httpHost/chats") {
                     headers {
@@ -53,15 +51,57 @@ class MessagesPageRequests {
                     contentType(ContentType.Application.Json)
                 }
                 if (httpResponse.status.value in 200..299) {
-                    successAction(snackbarHostState)
-                    return httpResponse.body()
+                    httpResponse.body<List<ChatDTO>>().forEach(onChatsChange)
                 } else {
                     errorAction(httpResponse, snackbarHostState)
-                    return mutableListOf()
                 }
             } catch (e: Throwable) {
                 exceptionAction(e, snackbarHostState)
-                return mutableListOf()
+            }
+        }
+
+        suspend fun addChatRequest(
+            chatCreateDTO: ChatCreateDTO,
+            onChatsChange: (ChatDTO) -> Unit,
+            snackbarHostState: SnackbarHostState
+        ) {
+            try {
+                val httpResponse: HttpResponse = httpClient.post("$httpHost/chat") {
+                    headers {
+                        header("Authorization", "Bearer ${token.token}")
+                    }
+                    contentType(ContentType.Application.Json)
+                    setBody(chatCreateDTO)
+                }
+                if (httpResponse.status.value in 200..299) {
+                    onChatsChange(httpResponse.body())
+                } else {
+                    errorAction(httpResponse, snackbarHostState)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState)
+            }
+        }
+
+        suspend fun getChatsMessagesRequest(
+            chatDTO: ChatDTO,
+            snackbarHostState: SnackbarHostState,
+            onMessagesChange: (MessageDTO) -> Unit,
+        ) {
+            try {
+                val httpResponse: HttpResponse = httpClient.get("$httpHost/chat/${chatDTO.id}/messages") {
+                    headers {
+                        header("Authorization", "Bearer ${token.token}")
+                    }
+                    contentType(ContentType.Application.Json)
+                }
+                if (httpResponse.status.value in 200..299) {
+                    httpResponse.body<List<MessageDTO>>().forEach(onMessagesChange)
+                } else {
+                    errorAction(httpResponse, snackbarHostState)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState)
             }
         }
     }

@@ -17,7 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,7 +52,7 @@ import ru.ssshteam.potatocoder228.messenger.requests.RegistrationRequests.Compan
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 @Preview
-fun RegistrationPage(navController: NavHostController) {
+fun RegistrationPage(navController: NavHostController, onThemeChange: () -> Unit) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
@@ -60,15 +60,15 @@ fun RegistrationPage(navController: NavHostController) {
             SnackbarHost(hostState = snackbarHostState)
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                text = { },
-                icon = { Icon(Icons.Outlined.Brightness6, contentDescription = "Brightness Mode") },
+            FloatingActionButton(
                 onClick = {
                     scope.launch {
-
+                        onThemeChange()
                     }
                 }
-            )
+            ) {
+                Icon(Icons.Outlined.Brightness6, contentDescription = "Сменить тему")
+            }
         },
         topBar = {
             TopAppBar(
@@ -77,7 +77,7 @@ fun RegistrationPage(navController: NavHostController) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Text("ShhhChat", style = MaterialTheme.typography.headlineMedium)
+                        Text("ShhhChat", style = MaterialTheme.typography.headlineLarge)
                     }
                 })
         },
@@ -96,7 +96,7 @@ fun RegistrationPage(navController: NavHostController) {
                     )
                 ) {
                     Text(
-                        text = "Registration",
+                        text = "Регистрация",
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
                     )
@@ -120,7 +120,6 @@ fun RegistrationForm(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier
 ) {
-    val rowWidth = 200.dp
     var loginInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -138,13 +137,13 @@ fun RegistrationForm(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp),
                 value = loginInput,
                 onValueChange = { loginInput = it },
-                label = { Text("Login") },
+                label = { Text("Логин") },
                 singleLine = true,
-                placeholder = { Text("Login") },
+                placeholder = { Text("Логин") },
                 trailingIcon = {
                     val image = Icons.Filled.Clear
 
-                    val description = "Clear"
+                    val description = "Очистить"
 
                     IconButton(onClick = { loginInput = "" }) {
                         Icon(imageVector = image, description)
@@ -154,16 +153,16 @@ fun RegistrationForm(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp),
                 value = passwordInput,
                 onValueChange = { passwordInput = it },
-                label = { Text("Password") },
+                label = { Text("Пароль") },
                 singleLine = true,
-                placeholder = { Text("Password") },
+                placeholder = { Text("Пароль") },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
                     val image = if (passwordVisible) Icons.Filled.Visibility
                     else Icons.Filled.VisibilityOff
 
-                    val description = if (passwordVisible) "Hide password" else "Show password"
+                    val description = if (passwordVisible) "Скрыть" else "Показать"
 
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(imageVector = image, description)
@@ -173,9 +172,9 @@ fun RegistrationForm(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp),
                 value = repeatPasswordInput,
                 onValueChange = { repeatPasswordInput = it },
-                label = { Text("RepeatPassword") },
+                label = { Text("Повторите пароль") },
                 singleLine = true,
-                placeholder = { Text("RepeatPassword") },
+                placeholder = { Text("Повторите пароль") },
                 visualTransformation = if (repeatPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
@@ -183,7 +182,7 @@ fun RegistrationForm(
                     else Icons.Filled.VisibilityOff
 
                     val description =
-                        if (repeatPasswordVisible) "Hide password" else "Show password"
+                        if (repeatPasswordVisible) "Скрыть пароль" else "Показать пароль"
 
                     IconButton(onClick = { repeatPasswordVisible = !repeatPasswordVisible }) {
                         Icon(imageVector = image, description)
@@ -200,14 +199,14 @@ fun RegistrationForm(
                         )
                     }
                 }) {
-                Text("Registration")
+                Text("Зарегистрироваться")
             }
             TextButton(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp),
                 onClick = {
                     navController.navigate(PageRoutes.SignInPage.route)
                 }) {
-                Text("Sign in")
+                Text("Перейти к авторизации")
             }
         }
     }

@@ -17,7 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +39,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -59,7 +64,7 @@ sealed class SignInRoutes(val route: String) {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 @Preview
-fun SignInPage(navController: NavHostController) {
+fun SignInPage(navController: NavHostController, onThemeChange: () -> Unit) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
@@ -67,16 +72,15 @@ fun SignInPage(navController: NavHostController) {
             SnackbarHost(hostState = snackbarHostState)
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                text = { },
-                icon = { Icon(Icons.Outlined.Brightness6, contentDescription = "Brightness Mode") },
-
+            FloatingActionButton(
                 onClick = {
                     scope.launch {
-
+                        onThemeChange()
                     }
                 }
-            )
+            ) {
+                Icon(Icons.Outlined.Brightness6, contentDescription = "Сменить тему")
+            }
         },
         topBar = {
             TopAppBar(
@@ -85,7 +89,7 @@ fun SignInPage(navController: NavHostController) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Text("ShhhChat", style = MaterialTheme.typography.headlineMedium)
+                        Text("ShhhChat", style = MaterialTheme.typography.headlineLarge)
                     }
                 })
         },
@@ -104,9 +108,9 @@ fun SignInPage(navController: NavHostController) {
                     )
                 ) {
                     Text(
-                        text = "Sign In",
+                        text = "Авторизация",
                         style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
+                        modifier = Modifier.align(alignment = Alignment.CenterHorizontally),
                     )
                     SignInForm(
                         navController,
@@ -132,7 +136,22 @@ fun SignInForm(
     var passwordInput by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    Column(modifier = modifier, verticalArrangement = Arrangement.Center) {
+    Column(modifier = modifier.onPreviewKeyEvent {
+        when {
+            (it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                scope.launch {
+                    signInRequest(
+                        UserAuthDTO(loginInput, passwordInput),
+                        navController,
+                        snackbarHostState
+                    )
+                }
+                true
+            }
+
+            else -> false
+        }
+    }, verticalArrangement = Arrangement.Center) {
         ElevatedCard(
             elevation = CardDefaults.cardElevation(
                 defaultElevation = 6.dp
@@ -143,13 +162,13 @@ fun SignInForm(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp),
                 value = loginInput,
                 onValueChange = { loginInput = it },
-                label = { Text("Login") },
+                label = { Text("Логин") },
                 singleLine = true,
-                placeholder = { Text("Login") },
+                placeholder = { Text("Логин") },
                 trailingIcon = {
                     val image = Icons.Filled.Clear
 
-                    val description = "Clear"
+                    val description = "Очистить"
 
                     IconButton(onClick = { loginInput = "" }) {
                         Icon(imageVector = image, description)
@@ -159,16 +178,16 @@ fun SignInForm(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp),
                 value = passwordInput,
                 onValueChange = { passwordInput = it },
-                label = { Text("Password") },
+                label = { Text("Пароль") },
                 singleLine = true,
-                placeholder = { Text("Password") },
+                placeholder = { Text("Пароль") },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
                     val image = if (passwordVisible) Icons.Filled.Visibility
                     else Icons.Filled.VisibilityOff
 
-                    val description = if (passwordVisible) "Hide password" else "Show password"
+                    val description = if (passwordVisible) "Скрыть пароль" else "Показать пароль"
 
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(imageVector = image, description)
@@ -185,14 +204,14 @@ fun SignInForm(
                         )
                     }
                 }) {
-                Text("Sign in")
+                Text("Авторизоваться")
             }
             TextButton(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp),
                 onClick = {
                     navController.navigate(PageRoutes.RegistrationPage.route)
                 }) {
-                Text("Registration")
+                Text("Регистрация")
             }
         }
     }

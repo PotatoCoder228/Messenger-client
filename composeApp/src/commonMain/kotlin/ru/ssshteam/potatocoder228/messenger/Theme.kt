@@ -9,6 +9,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 
 private val lightScheme = lightColorScheme(
@@ -252,13 +253,18 @@ val unspecified_scheme = ColorFamily(
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable() () -> Unit
 ) {
-    val colorScheme by remember {
+    var colorScheme by remember {
         mutableStateOf(
             when {
                 darkTheme -> darkScheme
                 else -> lightScheme
             }
         )
+    }
+    if (colorScheme == darkScheme && !darkTheme) {
+        colorScheme = lightScheme
+    } else if (colorScheme == lightScheme && darkTheme) {
+        colorScheme = darkScheme
     }
 
     MaterialTheme(

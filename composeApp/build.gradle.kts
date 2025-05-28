@@ -1,6 +1,5 @@
 
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
@@ -16,9 +15,16 @@ plugins {
 
 kotlin {
     androidTarget {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
+            jvmTarget.set(JvmTarget.JVM_21)
+            freeCompilerArgs.addAll(
+                listOf(
+                    "-Xmx1024m",
+                    "-Xms300m",
+                    "-XX:+UnlockExperimentalVMOptions",
+                    "-XX:+UseZGC"
+                )
+            )
         }
     }
 
@@ -79,11 +85,16 @@ kotlin {
             implementation(libs.androidx.adaptive.layout)
             implementation(libs.androidx.adaptive.navigation)
             implementation(libs.adaptive)
+            implementation(libs.androidx.sqlite.bundled.jvm)
+            implementation(libs.kotlin.stdlib.jdk8)
+            implementation(libs.androidx.sqlite)
+            implementation(libs.androidx.sqlite.bundled)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.websockets)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.androidx.material3)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -118,14 +129,36 @@ android {
         getByName("release") {
             isMinifyEnabled = true
         }
+        release {
+
+            // Enables code-related app optimization.
+            isMinifyEnabled = true
+
+            // Enables resource shrinking.
+            isShrinkResources = true
+            proguardFiles(
+                // Default file with automatically generated optimization rules.
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 }
 
 dependencies {
+    implementation(libs.androidx.sqlite.bundled.jvm)
+    implementation(libs.kotlin.stdlib.jdk8)
+    implementation(libs.androidx.sqlite)
+    implementation(libs.androidx.sqlite.bundled)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.websockets)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.client.content.negotiation)
     debugImplementation(compose.uiTooling)
 }
 
@@ -136,6 +169,7 @@ compose.desktop {
         buildTypes.release.proguard {
             obfuscate.set(true)
             optimize.set(true)
+            configurationFiles.from(project.file("proguard-rules.pro"))
         }
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Exe)

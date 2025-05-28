@@ -1,8 +1,11 @@
 package ru.ssshteam.potatocoder228.messenger
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Help
 import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Menu
@@ -28,12 +32,15 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Badge
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,6 +64,7 @@ import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaf
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,20 +79,30 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
+import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
+import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.getChatsRequest
+
+
+enum class UiState {
+    Loading,
+    Loaded
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 @Preview
-fun MessagesPage(navController: NavHostController) {
-    var chats by remember { mutableStateOf(mutableListOf<ChatDTO>()) }
+fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
     Column(
         modifier = Modifier.safeContentPadding().fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -103,50 +121,50 @@ fun MessagesPage(navController: NavHostController) {
                         Text(
                             "ShhhChat",
                             modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.titleLarge
+                            style = MaterialTheme.typography.headlineLarge
                         )
                         HorizontalDivider()
 
                         Text(
-                            "Menu",
+                            "Меню",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.titleMedium
                         )
                         NavigationDrawerItem(
-                            label = { Text("Threads") },
+                            label = { Text("Треды") },
                             selected = false,
                             onClick = { /* Handle click */ },
                             badge = { Text("5") },
                         )
                         NavigationDrawerItem(
-                            label = { Text("Messages") },
+                            label = { Text("Сообщения") },
                             selected = false,
                             onClick = { /* Handle click */ },
                             badge = { Text("20") },
                         )
                         NavigationDrawerItem(
-                            label = { Text("Saved Messages") },
+                            label = { Text("Избранные сообщения") },
                             selected = false,
                             onClick = { /* Handle click */ })
                         NavigationDrawerItem(
-                            label = { Text("Notifications") },
+                            label = { Text("Уведомления") },
                             selected = false,
                             onClick = { /* Handle click */ })
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                         Text(
-                            "Settings",
+                            "Настройки",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.titleMedium
                         )
                         NavigationDrawerItem(
-                            label = { Text("Settings") },
+                            label = { Text("Настройки") },
                             selected = false,
                             icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
                             onClick = { /* Handle click */ })
                         NavigationDrawerItem(
-                            label = { Text("Help and feedback") },
+                            label = { Text("Помощь и обратная связь") },
                             selected = false,
                             icon = {
                                 Icon(
@@ -155,7 +173,7 @@ fun MessagesPage(navController: NavHostController) {
                             },
                             onClick = { /* Handle click */ },
                         )
-                        NavigationDrawerItem(label = { Text("Logout") }, selected = false, icon = {
+                        NavigationDrawerItem(label = { Text("Выйти") }, selected = false, icon = {
                             Icon(
                                 Icons.AutoMirrored.Rounded.Logout, contentDescription = null
                             )
@@ -171,7 +189,11 @@ fun MessagesPage(navController: NavHostController) {
             Scaffold(snackbarHost = {
                 SnackbarHost(hostState = snackbarHostState)
             }, topBar = {
-                TopAppBar(title = { Text("ShhhChat") }, navigationIcon = {
+                TopAppBar(title = {
+                    Text(
+                        "ShhhChat", style = MaterialTheme.typography.headlineLarge
+                    )
+                }, navigationIcon = {
                     IconButton(onClick = {
                         scope.launch {
                             if (drawerState.isClosed) {
@@ -181,16 +203,28 @@ fun MessagesPage(navController: NavHostController) {
                             }
                         }
                     }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        Icon(Icons.Default.Menu, contentDescription = "Меню")
                     }
                 })
             }) {
+                val chats = rememberSaveable { mutableStateListOf<ChatDTO>() }
+                val messages = rememberSaveable { mutableStateListOf<MessageDTO>() }
                 val scaffoldNavigator = rememberListDetailPaneScaffoldNavigator<String>()
-                val selectedItem = scaffoldNavigator.currentDestination?.contentKey
-                scope.launch {
-                    chats = getChatsRequest(snackbarHostState = snackbarHostState)
+                remember {
+                    mutableStateOf(
+                        scope.launch {
+                            getChatsRequest(
+                                snackbarHostState = snackbarHostState,
+                                onChatsChange = { chat ->
+                                    chats.add(chat)
+                                })
+                        }
+                    )
                 }
                 var selectedChat by remember { mutableStateOf(ChatDTO(0)) }
+                var detailPaneState by remember {
+                    mutableStateOf(UiState.Loading)
+                }
                 ListDetailPaneScaffold(
                     modifier = Modifier.padding(it),
                     directive = scaffoldNavigator.scaffoldDirective,
@@ -201,160 +235,278 @@ fun MessagesPage(navController: NavHostController) {
                         ) {
                             var expanded by rememberSaveable { mutableStateOf(false) }
                             val textFieldState = rememberTextFieldState()
-                            Column {
-                                SearchBar(
-                                    modifier = Modifier.fillMaxWidth().padding(8.dp)
-                                        .semantics { traversalIndex = 0f },
-                                    shape = RoundedCornerShape(8.dp),
-                                    inputField = {
-                                        SearchBarDefaults.InputField(
-                                            modifier = Modifier
-                                                .height(75.dp),
-                                            query = textFieldState.text.toString(),
-                                            onQueryChange = {
-                                                textFieldState.edit {
-                                                    replace(
-                                                        0, length, it
-                                                    )
-                                                }
-                                            },
-                                            onSearch = {
-                                                expanded = false
-                                            },
-                                            expanded = expanded,
-                                            onExpandedChange = { expanded = it },
-                                            placeholder = { Text("Search") },
-                                            leadingIcon = {
-                                                if (expanded) {
-                                                    IconButton(
-                                                        onClick = {
-                                                            expanded = !expanded
-                                                        }) {
-                                                        Icon(
-                                                            Icons.AutoMirrored.Default.ArrowBack,
-                                                            contentDescription = "Back"
-                                                        )
-                                                    }
-                                                } else {
-                                                    IconButton(onClick = {
-                                                        expanded = !expanded
-                                                    }) {
-                                                        Icon(
-                                                            Icons.Default.Search,
-                                                            contentDescription = null
-                                                        )
-                                                    }
-                                                }
-                                            },
-                                            trailingIcon = {
-//                                                    Icon(
-//                                                        Icons.Default.MoreVert,
-//                                                        contentDescription = null
-//                                                    )
-                                            },
-
+                            val snackbarChatsHostState = remember { SnackbarHostState() }
+                            var addChatDialogExpanded by remember { mutableStateOf(false) }
+                            AnimatedVisibility(addChatDialogExpanded) {
+                                Dialog(onDismissRequest = {
+                                    addChatDialogExpanded = false
+                                }) {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                    ) {
+                                        val chatNameInput = remember { mutableStateOf("") }
+                                        var key: UInt = 0u
+                                        val users = mutableStateListOf(key)
+                                        val usersMap by remember { mutableStateOf(mutableMapOf<UInt, String>()) }
+                                        Column(modifier = Modifier.fillMaxWidth()) {
+                                            Text(
+                                                modifier = Modifier.padding(10.dp)
+                                                    .align(Alignment.CenterHorizontally),
+                                                text = "Новый чат",
+                                                style = MaterialTheme.typography.headlineSmall
                                             )
-                                    },
-                                    expanded = expanded,
-                                    onExpandedChange = { expanded = it },
-                                ) {
 
-                                }
-                                LazyColumn {
-                                    items(chats) { item ->
-                                        ElevatedCard(
-                                            elevation = CardDefaults.cardElevation(
-                                                defaultElevation = 6.dp
-                                            ),
-                                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                            onClick = {
-                                                scope.launch {
-                                                    selectedChat = item
-                                                    scaffoldNavigator.navigateTo(
-                                                        ListDetailPaneScaffoldRole.Detail, "1"
+                                            TextField(
+                                                modifier = Modifier.fillMaxWidth()
+                                                    .padding(10.dp, 50.dp, 10.dp, 20.dp),
+                                                value = chatNameInput.value,
+                                                onValueChange = { chatNameInput.value = it },
+                                                placeholder = { Text("Введите название чата!") },
+                                                maxLines = 1,
+                                                textStyle = TextStyle.Default.copy(fontSize = 18.sp)
+                                            )
+                                            LazyColumn(modifier = Modifier.height(400.dp)) {
+                                                items(
+                                                    items = users, key = { user ->
+                                                        user
+                                                    }) { item ->
+                                                    val usersInput = remember { mutableStateOf("") }
+                                                    TextField(
+                                                        modifier = Modifier.fillMaxWidth()
+                                                            .padding(10.dp),
+                                                        value = usersInput.value,
+                                                        onValueChange = {
+                                                            usersInput.value = it
+                                                            usersMap[item] = usersInput.value
+                                                        },
+                                                        placeholder = { Text("Введите имя пользователя!") },
+                                                        maxLines = 1,
                                                     )
                                                 }
-                                            },
-                                        ) {
+                                            }
+
                                             Row(
-                                                modifier = Modifier.padding(6.dp).fillMaxWidth()
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.End
                                             ) {
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Row(
-                                                        modifier = Modifier.padding(6.dp)
-                                                            .align(Start)
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Person,
-                                                            contentDescription = "Person",
-                                                            modifier = Modifier.size(60.dp)
-                                                                .clip(CircleShape)
-                                                        )
-                                                        Column(
-                                                            modifier = Modifier.align(
-                                                                CenterVertically
-                                                            )
-                                                        ) {
-                                                            Text(
-                                                                text = item.name, fontSize = 20.sp
-                                                            )
-                                                            Text(
-                                                                text = "Привет, давно тебя не было в уличных гонках!",
-                                                                fontSize = 11.sp,
-                                                                overflow = TextOverflow.Ellipsis,
-                                                                maxLines = 1
-                                                            )
+                                                FloatingActionButton(
+                                                    modifier = Modifier.padding(10.dp), onClick = {
+                                                        scope.launch {
+                                                            users.add(++key)
                                                         }
-                                                    }
+                                                    }) {
+                                                    Icon(
+                                                        Icons.Default.Add,
+                                                        contentDescription = "Добавить пользователя"
+                                                    )
                                                 }
-
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Row(
-                                                        modifier = Modifier.padding(6.dp).align(End)
-                                                    ) {
-                                                        Badge(
-                                                            modifier = Modifier.align(
-                                                                CenterVertically
-                                                            ).padding(6.dp),
-                                                            containerColor = Color.Red,
-                                                            contentColor = Color.White,
-
-                                                            ) {
-                                                            Text("1")
-                                                        }
-
-                                                        var expandedMenu by remember {
-                                                            mutableStateOf(
-                                                                false
+                                                FloatingActionButton(
+                                                    modifier = Modifier.padding(10.dp), onClick = {
+                                                        scope.launch {
+                                                            val usersList: MutableList<String> =
+                                                                usersMap.values.toMutableList()
+                                                            MessagesPageRequests.addChatRequest(
+                                                                ChatCreateDTO(
+                                                                    chatNameInput.value, usersList
+                                                                ),
+                                                                { chat -> chats.add(chat) },
+                                                                snackbarChatsHostState
                                                             )
+
+                                                            addChatDialogExpanded = false
                                                         }
+                                                    }) {
+                                                    Icon(
+                                                        Icons.Default.ChatBubble,
+                                                        contentDescription = "Создать чат"
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Scaffold(
+                                snackbarHost = {
+                                    SnackbarHost(hostState = snackbarChatsHostState)
+                                },
+                                floatingActionButton = {
+                                    FloatingActionButton(
+                                        onClick = {
+                                            scope.launch {
+                                                addChatDialogExpanded = true
+                                            }
+                                        }) {
+                                        Icon(
+                                            Icons.Default.Add, contentDescription = "Создать чат"
+                                        )
+                                    }
+                                },
+                            ) {
+                                Column {
+                                    SearchBar(
+                                        modifier = Modifier.fillMaxWidth().padding(8.dp)
+                                            .semantics { traversalIndex = 0f },
+                                        shape = RoundedCornerShape(8.dp),
+                                        inputField = {
+                                            SearchBarDefaults.InputField(
+                                                modifier = Modifier.height(75.dp),
+                                                query = textFieldState.text.toString(),
+                                                onQueryChange = {
+                                                    textFieldState.edit {
+                                                        replace(
+                                                            0, length, it
+                                                        )
+                                                    }
+                                                },
+                                                onSearch = {
+                                                    expanded = false
+                                                },
+                                                expanded = expanded,
+                                                onExpandedChange = { expanded = it },
+                                                placeholder = { Text("Поиск") },
+                                                leadingIcon = {
+                                                    if (expanded) {
                                                         IconButton(
-                                                            modifier = Modifier.align(
-                                                                CenterVertically
-                                                            ).padding(6.dp),
                                                             onClick = {
-                                                                expandedMenu = !expandedMenu
+                                                                expanded = !expanded
                                                             }) {
                                                             Icon(
-                                                                Icons.Default.MoreVert,
-                                                                contentDescription = "More options"
+                                                                Icons.AutoMirrored.Default.ArrowBack,
+                                                                contentDescription = "Назад"
                                                             )
                                                         }
-                                                        DropdownMenu(
-                                                            modifier = Modifier.align(
-                                                                CenterVertically
-                                                            ),
-                                                            expanded = expandedMenu,
-                                                            onDismissRequest = {
-                                                                expandedMenu = false
-                                                            }) {
-                                                            DropdownMenuItem(
-                                                                onClick = { },
-                                                                text = { Text("Удалить") })
-                                                            HorizontalDivider()
-                                                            DropdownMenuItem(
-                                                                onClick = { },
-                                                                text = { Text("Настройки") })
+                                                    } else {
+                                                        IconButton(onClick = {
+                                                            expanded = !expanded
+                                                        }) {
+                                                            Icon(
+                                                                Icons.Default.Search,
+                                                                contentDescription = null
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                trailingIcon = {},
+
+                                                )
+                                        },
+                                        expanded = expanded,
+                                        onExpandedChange = { expanded = it },
+                                    ) {
+
+                                    }
+                                    LazyColumn {
+                                        items(items = chats, key = { chat ->
+                                            chat.id
+                                        }) { item ->
+                                            ElevatedCard(
+                                                elevation = CardDefaults.cardElevation(
+                                                    defaultElevation = 6.dp
+                                                ),
+                                                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                                onClick = {
+                                                    scope.launch {
+                                                        scaffoldNavigator.navigateTo(
+                                                            ListDetailPaneScaffoldRole.Detail
+                                                        )
+                                                        selectedChat = item
+                                                        detailPaneState = UiState.Loading
+                                                        messages.clear()
+                                                        MessagesPageRequests.getChatsMessagesRequest(
+                                                            item,
+                                                            snackbarHostState
+                                                        ) { message ->
+                                                            messages.add(
+                                                                message
+                                                            )
+                                                        }
+                                                        detailPaneState = UiState.Loaded
+                                                    }
+                                                },
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Row(
+                                                            modifier = Modifier.padding(6.dp)
+                                                                .align(Start)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Person,
+                                                                contentDescription = "Person",
+                                                                modifier = Modifier.size(60.dp)
+                                                                    .clip(CircleShape)
+                                                            )
+                                                            Column(
+                                                                modifier = Modifier.align(
+                                                                    CenterVertically
+                                                                )
+                                                            ) {
+                                                                Text(
+                                                                    text = item.name,
+                                                                    style = MaterialTheme.typography.titleSmall
+                                                                )
+                                                                Text(
+                                                                    text = "Привет, давно тебя не было в уличных гонках!",
+                                                                    style = MaterialTheme.typography.bodyMedium,
+                                                                    overflow = TextOverflow.Ellipsis,
+                                                                    maxLines = 1
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Row(
+                                                            modifier = Modifier.padding(6.dp)
+                                                                .align(End)
+                                                        ) {
+                                                            Badge(
+                                                                modifier = Modifier.align(
+                                                                    CenterVertically
+                                                                ).padding(6.dp),
+                                                                containerColor = Color.Red,
+                                                                contentColor = Color.White,
+
+                                                                ) {
+                                                                Text("1")
+                                                            }
+
+                                                            var expandedMenu by remember {
+                                                                mutableStateOf(
+                                                                    false
+                                                                )
+                                                            }
+                                                            IconButton(
+                                                                modifier = Modifier.align(
+                                                                    CenterVertically
+                                                                ).padding(6.dp), onClick = {
+                                                                    expandedMenu = !expandedMenu
+                                                                }) {
+                                                                Icon(
+                                                                    Icons.Default.MoreVert,
+                                                                    contentDescription = "Опции"
+                                                                )
+                                                            }
+                                                            DropdownMenu(
+                                                                modifier = Modifier.align(
+                                                                    CenterVertically
+                                                                ),
+                                                                expanded = expandedMenu,
+                                                                onDismissRequest = {
+                                                                    expandedMenu = false
+                                                                }) {
+                                                                DropdownMenuItem(
+                                                                    onClick = { },
+                                                                    text = { Text("Удалить") })
+                                                                HorizontalDivider()
+                                                                DropdownMenuItem(
+                                                                    onClick = { },
+                                                                    text = { Text("Настройки") })
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -369,63 +521,81 @@ fun MessagesPage(navController: NavHostController) {
                         AnimatedPane(
                             modifier = Modifier.preferredWidth(500.dp).fillMaxWidth(),
                         ) {
-                            var expanded by rememberSaveable { mutableStateOf(false) }
-                            val textFieldState = rememberTextFieldState()
                             Column {
                                 if (selectedChat.id != 0) {
-                                    Scaffold(
-                                        topBar = {
-                                            TopAppBar(
-                                                title = { Text(selectedChat.name) },
-                                                navigationIcon = {
-                                                    IconButton(onClick = {
-                                                        scope.launch {
-                                                            if (drawerState.isClosed) {
-                                                                drawerState.open()
-                                                            } else {
-                                                                drawerState.close()
-                                                            }
+                                    Scaffold(topBar = {
+                                        TopAppBar(
+                                            title = {
+                                                Row {
+                                                    Text(selectedChat.name)
+                                                    when (detailPaneState) {
+                                                        UiState.Loading -> {
+                                                            CircularProgressIndicator(modifier= Modifier.size(20.dp))
                                                         }
-                                                    }) {
-                                                        Icon(
-                                                            Icons.Default.Menu,
-                                                            contentDescription = "Menu"
+
+                                                        UiState.Loaded -> {
+
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            navigationIcon = {
+                                                IconButton(onClick = {
+                                                    scope.launch {
+                                                        selectedChat = ChatDTO(0)
+                                                        detailPaneState = UiState.Loading
+                                                        scaffoldNavigator.navigateTo(
+                                                            ListDetailPaneScaffoldRole.List
                                                         )
                                                     }
-                                                })
-                                        },
-                                        bottomBar = {
-                                            val message = remember { mutableStateOf("") }
-                                            TextField(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                value = message.value,
-                                                onValueChange = { message.value = it },
-                                                placeholder = { Text("Input Your Message!") },
-                                                leadingIcon = {
-                                                    IconButton(onClick = {}) {
-                                                        Icon(
-                                                            Icons.Default.AttachFile,
-                                                            contentDescription = "Pin Document"
-                                                        )
-                                                    }
-                                                },
-                                                trailingIcon = {
-                                                    IconButton(onClick = {}) {
-                                                        Icon(
-                                                            Icons.Default.ChatBubble,
-                                                            contentDescription = "Send"
-                                                        )
-                                                    }
-                                                },
-                                                maxLines = 3,
-                                            )
-                                        }
-                                    ) {
+                                                }) {
+                                                    Icon(
+                                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                                        contentDescription = "Назад"
+                                                    )
+                                                }
+                                            },
+                                            actions = {
+                                                IconButton(onClick = {}) {
+                                                    Icon(
+                                                        Icons.Default.MoreVert,
+                                                        contentDescription = "Настройки чата"
+                                                    )
+                                                }
+                                            })
+                                    }, bottomBar = {
+                                        val message = remember { mutableStateOf("") }
+                                        TextField(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            value = message.value,
+                                            onValueChange = { message.value = it },
+                                            placeholder = { Text("Введите сообщение!") },
+                                            leadingIcon = {
+                                                IconButton(onClick = {}) {
+                                                    Icon(
+                                                        Icons.Default.AttachFile,
+                                                        contentDescription = "Прикрепить документ"
+                                                    )
+                                                }
+                                            },
+                                            trailingIcon = {
+                                                IconButton(onClick = {}) {
+                                                    Icon(
+                                                        Icons.Default.ChatBubble,
+                                                        contentDescription = "Отправить"
+                                                    )
+                                                }
+                                            },
+                                            maxLines = 3,
+                                        )
+                                    }) {
                                         LazyColumn(
-                                            modifier = Modifier.padding(it),
+                                            modifier = Modifier.padding(it).fillMaxHeight(),
                                             reverseLayout = true
                                         ) {
-                                            items(chats) { item ->
+                                            items(items = messages, key = { chat ->
+                                                chat.id
+                                            }) { item ->
                                                 ElevatedCard(
                                                     elevation = CardDefaults.cardElevation(
                                                         defaultElevation = 6.dp
@@ -435,8 +605,7 @@ fun MessagesPage(navController: NavHostController) {
                                                     onClick = {
                                                         scope.launch {
                                                             scaffoldNavigator.navigateTo(
-                                                                ListDetailPaneScaffoldRole.Detail,
-                                                                "1"
+                                                                ListDetailPaneScaffoldRole.Detail
                                                             )
                                                         }
                                                     },
@@ -447,13 +616,17 @@ fun MessagesPage(navController: NavHostController) {
                                                     ) {
                                                         Column(modifier = Modifier.weight(1f)) {
                                                             Row(
-                                                                modifier = Modifier.padding(6.dp)
+                                                                modifier = Modifier.padding(
+                                                                    6.dp
+                                                                )
                                                                     .align(Start)
                                                             ) {
                                                                 Icon(
                                                                     imageVector = Icons.Default.Person,
                                                                     contentDescription = "Person",
-                                                                    modifier = Modifier.size(60.dp)
+                                                                    modifier = Modifier.size(
+                                                                        60.dp
+                                                                    )
                                                                         .clip(CircleShape)
                                                                 )
                                                                 Column(
@@ -462,14 +635,13 @@ fun MessagesPage(navController: NavHostController) {
                                                                     )
                                                                 ) {
                                                                     Text(
-                                                                        text = item.name,
+                                                                        text = item.sender,
                                                                         fontSize = 20.sp
                                                                     )
                                                                     Text(
-                                                                        text = "Привет, давно тебя не было в уличных гонках!",
+                                                                        text = item.message,
                                                                         fontSize = 11.sp,
                                                                         overflow = TextOverflow.Ellipsis,
-                                                                        maxLines = 1
                                                                     )
                                                                 }
                                                             }
@@ -477,20 +649,11 @@ fun MessagesPage(navController: NavHostController) {
 
                                                         Column(modifier = Modifier.weight(1f)) {
                                                             Row(
-                                                                modifier = Modifier.padding(6.dp)
+                                                                modifier = Modifier.padding(
+                                                                    6.dp
+                                                                )
                                                                     .align(End)
                                                             ) {
-                                                                Badge(
-                                                                    modifier = Modifier.align(
-                                                                        CenterVertically
-                                                                    ).padding(6.dp),
-                                                                    containerColor = Color.Red,
-                                                                    contentColor = Color.White,
-
-                                                                    ) {
-                                                                    Text("1")
-                                                                }
-
                                                                 var expandedMenu by remember {
                                                                     mutableStateOf(
                                                                         false
@@ -501,11 +664,12 @@ fun MessagesPage(navController: NavHostController) {
                                                                         CenterVertically
                                                                     ).padding(6.dp),
                                                                     onClick = {
-                                                                        expandedMenu = !expandedMenu
+                                                                        expandedMenu =
+                                                                            !expandedMenu
                                                                     }) {
                                                                     Icon(
                                                                         Icons.Default.MoreVert,
-                                                                        contentDescription = "More options"
+                                                                        contentDescription = "Настройки"
                                                                     )
                                                                 }
                                                                 DropdownMenu(
@@ -518,11 +682,10 @@ fun MessagesPage(navController: NavHostController) {
                                                                     }) {
                                                                     DropdownMenuItem(
                                                                         onClick = { },
-                                                                        text = { Text("Удалить") })
-                                                                    HorizontalDivider()
+                                                                        text = { Text("Переслать") })
                                                                     DropdownMenuItem(
                                                                         onClick = { },
-                                                                        text = { Text("Настройки") })
+                                                                        text = { Text("Удалить") })
                                                                 }
                                                             }
                                                         }

@@ -1,6 +1,10 @@
 package ru.ssshteam.potatocoder228.messenger
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -12,25 +16,27 @@ var datastore = DataStore()
 @Preview
 fun App() {
     val navController = rememberNavController()
+    var theme by rememberSaveable { mutableStateOf(false) }
+    val onThemeChange = { theme = !theme }
     NavHost(navController = navController, startDestination = PageRoutes.SignInPage.route) {
 
         composable(PageRoutes.MessagesPage.route) {
-            AppTheme {
-                MessagesPage(navController)
+            AppTheme(theme) {
+                MessagesPage(navController, onThemeChange)
 
             }
         }
 
 
         composable(PageRoutes.SignInPage.route) {
-            AppTheme {
-                SignInPage(navController)
+            AppTheme(theme) {
+                SignInPage(navController, onThemeChange)
             }
         }
 
         composable(PageRoutes.RegistrationPage.route) {
-            AppTheme {
-                RegistrationPage(navController)
+            AppTheme(theme) {
+                RegistrationPage(navController, onThemeChange)
             }
         }
     }
