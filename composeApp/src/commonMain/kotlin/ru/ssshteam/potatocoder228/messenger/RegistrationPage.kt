@@ -49,7 +49,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import ru.ssshteam.potatocoder228.messenger.dto.UserAuthDTO
 import ru.ssshteam.potatocoder228.messenger.requests.RegistrationRequests.Companion.registrationRequest
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
 fun RegistrationPage(navController: NavHostController, onThemeChange: () -> Unit) {

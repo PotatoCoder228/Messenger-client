@@ -8,6 +8,7 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         title = "Messenger",
     ) {
+        datastore = DataStore()
         App()
     }
 }

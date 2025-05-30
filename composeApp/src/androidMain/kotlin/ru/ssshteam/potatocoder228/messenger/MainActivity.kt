@@ -11,7 +11,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-
+        datastore = DataStore(openOrCreateDatabase("Cookie.db", MODE_PRIVATE, null))
         setContent {
             App()
         }

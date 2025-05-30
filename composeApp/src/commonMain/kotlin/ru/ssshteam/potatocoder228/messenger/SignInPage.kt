@@ -28,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,14 +53,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import ru.ssshteam.potatocoder228.messenger.dto.UserAuthDTO
 import ru.ssshteam.potatocoder228.messenger.requests.SignInRequests.Companion.signInRequest
 
-
-sealed class SignInRoutes(val route: String) {
-
-    data object Auth : PageRoutes("Auth")
-    data object Registration : PageRoutes("Registration")
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
 fun SignInPage(navController: NavHostController, onThemeChange: () -> Unit) {
@@ -124,7 +116,6 @@ fun SignInPage(navController: NavHostController, onThemeChange: () -> Unit) {
 
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 @Preview
 fun SignInForm(

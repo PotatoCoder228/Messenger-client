@@ -3,6 +3,7 @@ package ru.ssshteam.potatocoder228.messenger.requests
 
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.mutableStateOf
 import androidx.navigation.NavHostController
 import io.ktor.client.call.body
 import io.ktor.client.request.post
@@ -27,10 +28,10 @@ class SignInRequests {
         ) {
             val tokenDto: TokenDTO = httpResponse.body()
 
-            datastore.saveCookie("token", tokenDto.token)
-            datastore.saveCookie("userId", tokenDto.userId.toString())
+            datastore?.saveCookie("token", tokenDto.token)
+            datastore?.saveCookie("userId", tokenDto.userId.toString())
 
-            token = tokenDto
+            token = mutableStateOf(tokenDto)
             navController.navigate(PageRoutes.MessagesPage.route)
         }
 

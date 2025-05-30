@@ -1,6 +1,8 @@
 package ru.ssshteam.potatocoder228.messenger
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,12 +36,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -77,6 +78,12 @@ import androidx.compose.ui.Alignment.Companion.Start
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.TextStyle
@@ -85,21 +92,47 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.hildan.krossbow.stomp.StompSession
+import org.hildan.krossbow.stomp.conversions.kxserialization.json.withJsonConversions
+import org.hildan.krossbow.stomp.headers.StompSubscribeHeaders
+import org.hildan.krossbow.stomp.use
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
 import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
+import ru.ssshteam.potatocoder228.messenger.dto.OperationDTO
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests
+import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.deleteChatRequest
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.getChatsRequest
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 
 enum class UiState {
-    Loading,
-    Loaded
+    Loading, Loaded
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalAtomicApi::class)
+var chatsSessionIdentificator: AtomicInt = AtomicInt(0)
+
+@OptIn(ExperimentalAtomicApi::class)
+var messagesSessionIdentificator: AtomicInt = AtomicInt(0)
+
+val messagesSessionMutex = Mutex()
+val chatsSessionMutex = Mutex()
+
+
+var messagesCurrentSession: StompSession? = null
+var chatsCurrentSession: StompSession? = null
+
+@OptIn(
+    ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class,
+    ExperimentalAtomicApi::class
+)
 @Composable
 @Preview
 fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
@@ -131,7 +164,7 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                             style = MaterialTheme.typography.titleMedium
                         )
                         NavigationDrawerItem(
-                            label = { Text("Треды") },
+                            label = { Text("Комментарии") },
                             selected = false,
                             onClick = { /* Handle click */ },
                             badge = { Text("5") },
@@ -207,21 +240,20 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                     }
                 })
             }) {
-                val chats = rememberSaveable { mutableStateListOf<ChatDTO>() }
-                val messages = rememberSaveable { mutableStateListOf<MessageDTO>() }
+                val chats = remember { mutableStateListOf<ChatDTO?>() }
+                val messages = remember { mutableStateListOf<MessageDTO?>() }
                 val scaffoldNavigator = rememberListDetailPaneScaffoldNavigator<String>()
-                remember {
+                remember(token?.value?.userId) {
                     mutableStateOf(
                         scope.launch {
                             getChatsRequest(
-                                snackbarHostState = snackbarHostState,
-                                onChatsChange = { chat ->
+                                snackbarHostState = snackbarHostState, onChatsChange = { chat ->
                                     chats.add(chat)
+                                    println("Chat added ${chat.id}")
                                 })
-                        }
-                    )
+                        })
                 }
-                var selectedChat by remember { mutableStateOf(ChatDTO(0)) }
+                var selectedChat by remember { mutableStateOf<ChatDTO?>(null) }
                 var detailPaneState by remember {
                     mutableStateOf(UiState.Loading)
                 }
@@ -266,7 +298,7 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                 maxLines = 1,
                                                 textStyle = TextStyle.Default.copy(fontSize = 18.sp)
                                             )
-                                            LazyColumn(modifier = Modifier.height(400.dp)) {
+                                            LazyColumn(modifier = Modifier.height(200.dp)) {
                                                 items(
                                                     items = users, key = { user ->
                                                         user
@@ -310,7 +342,7 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                                 ChatCreateDTO(
                                                                     chatNameInput.value, usersList
                                                                 ),
-                                                                { chat -> chats.add(chat) },
+                                                                { chat -> },
                                                                 snackbarChatsHostState
                                                             )
 
@@ -397,26 +429,82 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                     ) {
 
                                     }
+                                    remember(token) {
+                                        scope.launch {
+                                            val identificator =
+                                                chatsSessionIdentificator.addAndFetch(1)
+                                            val session: StompSession = client.connect(
+                                                wsHost,
+                                                customStompConnectHeaders = mapOf("Authorization" to "Bearer ${token?.value?.token}")
+                                            )
+                                            chatsSessionMutex.withLock {
+                                                if (chatsCurrentSession != null) {
+                                                    chatsCurrentSession?.disconnect()
+                                                }
+                                                chatsCurrentSession = session
+                                            }
+                                            session.use {
+                                                val jsonStompSession =
+                                                    session.withJsonConversions(json)
+                                                jsonStompSession.use { s ->
+                                                    val subscription: Flow<OperationDTO<ChatDTO>> =
+                                                        s.subscribe(
+                                                            StompSubscribeHeaders("/topic/user/${token?.value?.userId}/chats"),
+                                                            OperationDTO.serializer(ChatDTO.serializer())
+                                                        )
+                                                    while (identificator == chatsSessionIdentificator.load()) {
+                                                        subscription.collect { stompMessage ->
+                                                            val first =
+                                                                chats.withIndex().firstOrNull {
+                                                                    (stompMessage.data?.id) == (it.value?.id)
+                                                                }
+                                                            if (identificator != chatsSessionIdentificator.load()) {
+                                                                return@collect
+                                                            }
+                                                            when (stompMessage.operation) {
+                                                                "ADD" -> {
+                                                                    chats.add(
+                                                                        0, stompMessage.data
+                                                                    )
+                                                                }
+
+                                                                "DELETE" -> {
+                                                                    if (first != null) {
+                                                                        chats.removeAt(first.index)
+                                                                    }
+                                                                }
+
+                                                                "UPDATE" -> {
+                                                                    if (first != null) {
+                                                                        chats[first.index] =
+                                                                            stompMessage.data
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                     LazyColumn {
-                                        items(items = chats, key = { chat ->
-                                            chat.id
+                                        items(items = chats, key = {
+                                            it?.id!!
                                         }) { item ->
-                                            ElevatedCard(
-                                                elevation = CardDefaults.cardElevation(
-                                                    defaultElevation = 6.dp
-                                                ),
+                                            Card(
                                                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                                                 onClick = {
                                                     scope.launch {
                                                         scaffoldNavigator.navigateTo(
                                                             ListDetailPaneScaffoldRole.Detail
                                                         )
-                                                        selectedChat = item
+                                                        if (item != null) {
+                                                            selectedChat = item
+                                                        }
                                                         detailPaneState = UiState.Loading
                                                         messages.clear()
                                                         MessagesPageRequests.getChatsMessagesRequest(
-                                                            item,
-                                                            snackbarHostState
+                                                            item, snackbarHostState
                                                         ) { message ->
                                                             messages.add(
                                                                 message
@@ -446,7 +534,7 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                                 )
                                                             ) {
                                                                 Text(
-                                                                    text = item.name,
+                                                                    text = item?.name ?: "Unknown",
                                                                     style = MaterialTheme.typography.titleSmall
                                                                 )
                                                                 Text(
@@ -499,9 +587,28 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                                 onDismissRequest = {
                                                                     expandedMenu = false
                                                                 }) {
-                                                                DropdownMenuItem(
-                                                                    onClick = { },
-                                                                    text = { Text("Удалить") })
+                                                                DropdownMenuItem(onClick = {
+                                                                    scope.launch {
+                                                                        deleteChatRequest(
+                                                                            item, { chat ->
+                                                                                {
+                                                                                    val first =
+                                                                                        chats.withIndex()
+                                                                                            .firstOrNull {
+                                                                                                (chat.id
+                                                                                                    ?: 0) == (it.value?.id
+                                                                                                    ?: 0)
+                                                                                            }
+                                                                                    if (first != null) {
+                                                                                        chats.removeAt(
+                                                                                            first.index
+                                                                                        )
+                                                                                    }
+                                                                                }
+                                                                            }, snackbarHostState
+                                                                        )
+                                                                    }
+                                                                }, text = { Text("Удалить") })
                                                                 HorizontalDivider()
                                                                 DropdownMenuItem(
                                                                     onClick = { },
@@ -522,51 +629,80 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                             modifier = Modifier.preferredWidth(500.dp).fillMaxWidth(),
                         ) {
                             Column {
-                                if (selectedChat.id != 0) {
+                                AnimatedVisibility(
+                                    selectedChat != null, enter = expandHorizontally(
+                                        expandFrom = Start
+                                    ), exit = shrinkHorizontally()
+                                ) {
+                                    val lazyColumnListState = rememberLazyListState()
                                     Scaffold(topBar = {
-                                        TopAppBar(
-                                            title = {
-                                                Row {
-                                                    Text(selectedChat.name)
-                                                    when (detailPaneState) {
-                                                        UiState.Loading -> {
-                                                            CircularProgressIndicator(modifier= Modifier.size(20.dp))
-                                                        }
-
-                                                        UiState.Loaded -> {
-
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            navigationIcon = {
-                                                IconButton(onClick = {
-                                                    scope.launch {
-                                                        selectedChat = ChatDTO(0)
-                                                        detailPaneState = UiState.Loading
-                                                        scaffoldNavigator.navigateTo(
-                                                            ListDetailPaneScaffoldRole.List
+                                        TopAppBar(title = {
+                                            Row {
+                                                Text(selectedChat?.name ?: "Unknown")
+                                                when (detailPaneState) {
+                                                    UiState.Loading -> {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(
+                                                                20.dp
+                                                            )
                                                         )
                                                     }
-                                                }) {
-                                                    Icon(
-                                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                                        contentDescription = "Назад"
+
+                                                    UiState.Loaded -> {
+
+                                                    }
+                                                }
+                                            }
+                                        }, navigationIcon = {
+                                            IconButton(onClick = {
+                                                scope.launch {
+                                                    selectedChat = null
+                                                    detailPaneState = UiState.Loading
+                                                    scaffoldNavigator.navigateTo(
+                                                        ListDetailPaneScaffoldRole.List
                                                     )
                                                 }
-                                            },
-                                            actions = {
-                                                IconButton(onClick = {}) {
-                                                    Icon(
-                                                        Icons.Default.MoreVert,
-                                                        contentDescription = "Настройки чата"
-                                                    )
-                                                }
-                                            })
+                                            }) {
+                                                Icon(
+                                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                                    contentDescription = "Назад"
+                                                )
+                                            }
+                                        }, actions = {
+                                            IconButton(onClick = {}) {
+                                                Icon(
+                                                    Icons.Default.MoreVert,
+                                                    contentDescription = "Настройки чата"
+                                                )
+                                            }
+                                        })
                                     }, bottomBar = {
                                         val message = remember { mutableStateOf("") }
                                         TextField(
-                                            modifier = Modifier.fillMaxWidth(),
+                                            modifier = Modifier.fillMaxWidth().onPreviewKeyEvent {
+                                                when {
+                                                    (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                                                        scope.launch {
+                                                            MessagesPageRequests.sendMessageRequest(
+                                                                selectedChat,
+                                                                MessageDTO(message = message.value),
+                                                                { item -> },
+                                                                snackbarHostState
+                                                            )
+                                                            lazyColumnListState.scrollToItem(0)
+                                                            message.value = ""
+                                                        }
+                                                        true
+                                                    }
+
+                                                    (it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                                                        message.value += "\n"
+                                                        true
+                                                    }
+
+                                                    else -> false
+                                                }
+                                            },
                                             value = message.value,
                                             onValueChange = { message.value = it },
                                             placeholder = { Text("Введите сообщение!") },
@@ -579,7 +715,18 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                 }
                                             },
                                             trailingIcon = {
-                                                IconButton(onClick = {}) {
+                                                IconButton(onClick = {
+                                                    scope.launch {
+                                                        MessagesPageRequests.sendMessageRequest(
+                                                            selectedChat,
+                                                            MessageDTO(message = message.value),
+                                                            { item -> },
+                                                            snackbarHostState
+                                                        )
+                                                        lazyColumnListState.scrollToItem(0)
+                                                        message.value = ""
+                                                    }
+                                                }) {
                                                     Icon(
                                                         Icons.Default.ChatBubble,
                                                         contentDescription = "Отправить"
@@ -589,17 +736,87 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                             maxLines = 3,
                                         )
                                     }) {
+                                        remember(selectedChat?.id) {
+                                            scope.launch {
+                                                val sessionId =
+                                                    messagesSessionIdentificator.addAndFetch(1)
+                                                val session: StompSession = client.connect(
+                                                    wsHost,
+                                                    customStompConnectHeaders = mapOf("Authorization" to "Bearer ${token?.value?.token}")
+                                                )
+                                                messagesSessionMutex.withLock {
+                                                    if (messagesCurrentSession != null) {
+                                                        messagesCurrentSession?.disconnect()
+                                                    }
+                                                    messagesCurrentSession = session
+                                                }
+                                                session.use {
+                                                    val jsonStompSession =
+                                                        session.withJsonConversions(json)
+                                                    jsonStompSession.use { s ->
+                                                        val subscription: Flow<OperationDTO<MessageDTO>> =
+                                                            s.subscribe(
+                                                                StompSubscribeHeaders("/topic/chat/${selectedChat?.id}/messages"),
+                                                                OperationDTO.serializer(
+                                                                    MessageDTO.serializer()
+                                                                )
+                                                            )
+                                                        while (sessionId == messagesSessionIdentificator.load()) {
+                                                            subscription.collect { stompMessage ->
+                                                                println("message notice ${stompMessage.data?.id} ${stompMessage.operation}")
+                                                                val first = messages.withIndex()
+                                                                    .firstOrNull {
+                                                                        (stompMessage.data?.id
+                                                                            ?: 0) == (it.value?.id
+                                                                            ?: 0)
+                                                                    }
+                                                                if (sessionId != messagesSessionIdentificator.load()) {
+                                                                    return@collect
+                                                                }
+                                                                when (stompMessage.operation) {
+                                                                    "ADD" -> {
+                                                                        val index =
+                                                                            lazyColumnListState.firstVisibleItemIndex
+                                                                        messages.add(
+                                                                            0, stompMessage.data
+                                                                        )
+                                                                        if (index == 0) {
+                                                                            lazyColumnListState.scrollToItem(
+                                                                                0
+                                                                            )
+                                                                        }
+                                                                    }
+
+                                                                    "DELETE" -> {
+                                                                        if (first != null) {
+                                                                            messages.removeAt(
+                                                                                first.index
+                                                                            )
+                                                                        }
+                                                                    }
+
+                                                                    "UPDATE" -> {
+                                                                        if (first != null) {
+                                                                            messages[first.index] =
+                                                                                stompMessage.data
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                         LazyColumn(
                                             modifier = Modifier.padding(it).fillMaxHeight(),
-                                            reverseLayout = true
+                                            reverseLayout = true,
+                                            state = lazyColumnListState
                                         ) {
-                                            items(items = messages, key = { chat ->
-                                                chat.id
-                                            }) { item ->
-                                                ElevatedCard(
-                                                    elevation = CardDefaults.cardElevation(
-                                                        defaultElevation = 6.dp
-                                                    ),
+                                            items(
+                                                items = messages,
+                                                key = { message -> message?.id ?: 0 }) { item ->
+                                                Card(
                                                     modifier = Modifier.fillMaxWidth()
                                                         .padding(8.dp),
                                                     onClick = {
@@ -618,16 +835,14 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                             Row(
                                                                 modifier = Modifier.padding(
                                                                     6.dp
-                                                                )
-                                                                    .align(Start)
+                                                                ).align(Start)
                                                             ) {
                                                                 Icon(
                                                                     imageVector = Icons.Default.Person,
                                                                     contentDescription = "Person",
                                                                     modifier = Modifier.size(
                                                                         60.dp
-                                                                    )
-                                                                        .clip(CircleShape)
+                                                                    ).clip(CircleShape)
                                                                 )
                                                                 Column(
                                                                     modifier = Modifier.align(
@@ -635,14 +850,17 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                                     )
                                                                 ) {
                                                                     Text(
-                                                                        text = item.sender,
+                                                                        text = item?.sender
+                                                                            ?: "Unknown",
                                                                         fontSize = 20.sp
                                                                     )
-                                                                    Text(
-                                                                        text = item.message,
-                                                                        fontSize = 11.sp,
-                                                                        overflow = TextOverflow.Ellipsis,
-                                                                    )
+                                                                    if (item != null) {
+                                                                        Text(
+                                                                            text = item.message,
+                                                                            fontSize = 11.sp,
+                                                                            overflow = TextOverflow.Ellipsis,
+                                                                        )
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -651,8 +869,7 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                             Row(
                                                                 modifier = Modifier.padding(
                                                                     6.dp
-                                                                )
-                                                                    .align(End)
+                                                                ).align(End)
                                                             ) {
                                                                 var expandedMenu by remember {
                                                                     mutableStateOf(
@@ -662,10 +879,8 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                                 IconButton(
                                                                     modifier = Modifier.align(
                                                                         CenterVertically
-                                                                    ).padding(6.dp),
-                                                                    onClick = {
-                                                                        expandedMenu =
-                                                                            !expandedMenu
+                                                                    ).padding(6.dp), onClick = {
+                                                                        expandedMenu = !expandedMenu
                                                                     }) {
                                                                     Icon(
                                                                         Icons.Default.MoreVert,

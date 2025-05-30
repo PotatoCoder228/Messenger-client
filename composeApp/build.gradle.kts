@@ -17,14 +17,6 @@ kotlin {
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_21)
-            freeCompilerArgs.addAll(
-                listOf(
-                    "-Xmx1024m",
-                    "-Xms300m",
-                    "-XX:+UnlockExperimentalVMOptions",
-                    "-XX:+UseZGC"
-                )
-            )
         }
     }
 
@@ -68,7 +60,6 @@ kotlin {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.kotlin.stdlib.jdk8)
-            implementation(libs.androidx.sqlite)
             implementation(libs.androidx.sqlite.bundled)
         }
         commonMain.dependencies {
@@ -85,16 +76,16 @@ kotlin {
             implementation(libs.androidx.adaptive.layout)
             implementation(libs.androidx.adaptive.navigation)
             implementation(libs.adaptive)
-            implementation(libs.androidx.sqlite.bundled.jvm)
             implementation(libs.kotlin.stdlib.jdk8)
-            implementation(libs.androidx.sqlite)
-            implementation(libs.androidx.sqlite.bundled)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.websockets)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.krossbow.stomp.core)
+            implementation(libs.krossbow.stomp.kxserialization.json)
             implementation(libs.androidx.material3)
+            implementation(libs.krossbow.websocket.ktor)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -103,7 +94,6 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlin.stdlib.jdk8)
-            implementation(libs.androidx.sqlite)
             implementation(libs.androidx.sqlite.bundled)
         }
     }
@@ -141,6 +131,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -150,10 +141,7 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.sqlite.bundled.jvm)
     implementation(libs.kotlin.stdlib.jdk8)
-    implementation(libs.androidx.sqlite)
-    implementation(libs.androidx.sqlite.bundled)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.websockets)
