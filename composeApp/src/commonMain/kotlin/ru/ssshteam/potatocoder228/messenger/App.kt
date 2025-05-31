@@ -10,7 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
-var datastore:DataStore? = null
+var datastore: DataStore? = null
 
 @Composable
 @Preview

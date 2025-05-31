@@ -3,6 +3,8 @@ package ru.ssshteam.potatocoder228.messenger
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +39,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DisplayMode.Companion.Input
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -84,6 +87,7 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.TextStyle
@@ -110,7 +114,6 @@ import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Compan
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.getChatsRequest
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
-
 
 enum class UiState {
     Loading, Loaded
@@ -219,27 +222,30 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
             }, drawerState = drawerState
         ) {
             val snackbarHostState = remember { SnackbarHostState() }
-            Scaffold(snackbarHost = {
-                SnackbarHost(hostState = snackbarHostState)
-            }, topBar = {
-                TopAppBar(title = {
-                    Text(
-                        "ShhhChat", style = MaterialTheme.typography.headlineLarge
-                    )
-                }, navigationIcon = {
-                    IconButton(onClick = {
-                        scope.launch {
-                            if (drawerState.isClosed) {
-                                drawerState.open()
-                            } else {
-                                drawerState.close()
+            Scaffold(
+                modifier = if (getPlatform().name == "Java") Modifier.pointerInput(Input) { detectDragGestures { _, _ -> } }
+                    .pointerInput(Input) { detectTapGestures { _ -> } } else Modifier,
+                snackbarHost = {
+                    SnackbarHost(hostState = snackbarHostState)
+                }, topBar = {
+                    TopAppBar(title = {
+                        Text(
+                            "ShhhChat", style = MaterialTheme.typography.headlineLarge
+                        )
+                    }, navigationIcon = {
+                        IconButton(onClick = {
+                            scope.launch {
+                                if (drawerState.isClosed) {
+                                    drawerState.open()
+                                } else {
+                                    drawerState.close()
+                                }
                             }
+                        }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Меню")
                         }
-                    }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Меню")
-                    }
-                })
-            }) {
+                    })
+                }) {
                 val chats = remember { mutableStateListOf<ChatDTO?>() }
                 val messages = remember { mutableStateListOf<MessageDTO?>() }
                 val scaffoldNavigator = rememberListDetailPaneScaffoldNavigator<String>()
@@ -278,8 +284,10 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                         shape = RoundedCornerShape(16.dp),
                                     ) {
                                         val chatNameInput = remember { mutableStateOf("") }
-                                        var key: UInt = 0u
-                                        val users = mutableStateListOf(key)
+                                        var key by remember {
+                                            mutableStateOf(0u)
+                                        }
+                                        val users = remember { mutableStateListOf(key) }
                                         val usersMap by remember { mutableStateOf(mutableMapOf<UInt, String>()) }
                                         Column(modifier = Modifier.fillMaxWidth()) {
                                             Text(
@@ -301,7 +309,7 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                             LazyColumn(modifier = Modifier.height(200.dp)) {
                                                 items(
                                                     items = users, key = { user ->
-                                                        user
+                                                        user.toString()
                                                     }) { item ->
                                                     val usersInput = remember { mutableStateOf("") }
                                                     TextField(
@@ -589,22 +597,11 @@ fun MessagesPage(navController: NavHostController, onThemeChange: () -> Unit) {
                                                                 }) {
                                                                 DropdownMenuItem(onClick = {
                                                                     scope.launch {
+                                                                        if (selectedChat?.id == item?.id) {
+                                                                            selectedChat = null
+                                                                        }
                                                                         deleteChatRequest(
                                                                             item, { chat ->
-                                                                                {
-                                                                                    val first =
-                                                                                        chats.withIndex()
-                                                                                            .firstOrNull {
-                                                                                                (chat.id
-                                                                                                    ?: 0) == (it.value?.id
-                                                                                                    ?: 0)
-                                                                                            }
-                                                                                    if (first != null) {
-                                                                                        chats.removeAt(
-                                                                                            first.index
-                                                                                        )
-                                                                                    }
-                                                                                }
                                                                             }, snackbarHostState
                                                                         )
                                                                     }

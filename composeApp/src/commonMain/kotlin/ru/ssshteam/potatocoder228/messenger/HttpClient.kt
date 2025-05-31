@@ -29,7 +29,7 @@ val httpClient = HttpClient(CIO) {
         json()
     }
 }
-val wsClient = HttpClient() {
+val wsClient = HttpClient {
     install(WebSockets) {
         pingIntervalMillis = 20_000
         contentConverter = KotlinxWebsocketSerializationConverter(Json)

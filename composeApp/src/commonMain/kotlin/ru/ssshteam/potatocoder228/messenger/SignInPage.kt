@@ -102,12 +102,12 @@ fun SignInPage(navController: NavHostController, onThemeChange: () -> Unit) {
                     Text(
                         text = "Авторизация",
                         style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.align(alignment = Alignment.CenterHorizontally),
+                        modifier = Modifier.align(alignment = CenterHorizontally),
                     )
                     SignInForm(
                         navController,
                         snackbarHostState,
-                        Modifier.align(alignment = Alignment.CenterHorizontally)
+                        Modifier.align(alignment = CenterHorizontally)
                     )
                 }
             }

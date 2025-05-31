@@ -98,12 +98,12 @@ fun RegistrationPage(navController: NavHostController, onThemeChange: () -> Unit
                     Text(
                         text = "Регистрация",
                         style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
+                        modifier = Modifier.align(alignment = CenterHorizontally)
                     )
                     RegistrationForm(
                         navController,
                         snackbarHostState,
-                        Modifier.align(alignment = Alignment.CenterHorizontally)
+                        Modifier.align(alignment = CenterHorizontally)
                     )
                 }
             }
