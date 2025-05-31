@@ -4,27 +4,36 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 
 
-actual class DataStore: AutoCloseable {
+actual class DataStore : AutoCloseable {
 
     private var databaseConnection: SQLiteDatabase?
-    actual constructor(){
+
+    actual constructor() {
         databaseConnection = null
     }
-    constructor(db : SQLiteDatabase){
+
+    constructor(db: SQLiteDatabase) {
+
         databaseConnection = db;
+        var query: Cursor? = databaseConnection?.rawQuery("PRAGMA journal_mode=DELETE", null)
+        query?.close()
+        query = databaseConnection?.rawQuery("PRAGMA cipher = 'chacha20'", null)
+        query?.close()
+        query = databaseConnection?.rawQuery("PRAGMA key = 'MyBigKey'", null)
+        query?.close()
         databaseConnection?.execSQL(
-             "CREATE TABLE IF NOT EXISTS Cookie (id INTEGER PRIMARY KEY, key TEXT UNIQUE, data TEXT)"
+            "CREATE TABLE IF NOT EXISTS Cookie (id INTEGER PRIMARY KEY, key TEXT UNIQUE, data TEXT)"
         )
     }
 
     actual fun saveCookie(key: String, data: String, daysToLive: Int) {
-        databaseConnection?.compileStatement("INSERT INTO Cookie (key, DATA) VALUES (?,?) ON CONFLICT (key) DO UPDATE SET DATA = ?").use{
-            stmt ->
-            stmt?.bindString(1, key)
-            stmt?.bindString(2, data)
-            stmt?.bindString(3, data)
-            stmt?.executeInsert()
-        }
+        databaseConnection?.compileStatement("INSERT INTO Cookie (key, DATA) VALUES (?,?) ON CONFLICT (key) DO UPDATE SET DATA = ?")
+            .use { stmt ->
+                stmt?.bindString(1, key)
+                stmt?.bindString(2, data)
+                stmt?.bindString(3, data)
+                stmt?.executeInsert()
+            }
     }
 
     actual fun getCookie(key: String): String {
@@ -33,6 +42,7 @@ actual class DataStore: AutoCloseable {
         if (query?.moveToFirst() == true) {
             result = query.getString(0)
         }
+        query?.close()
         return result
     }
 

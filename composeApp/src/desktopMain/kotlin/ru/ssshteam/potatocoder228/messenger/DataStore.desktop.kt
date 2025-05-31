@@ -7,6 +7,9 @@ actual class DataStore actual constructor() : AutoCloseable {
     private var databaseConnection = BundledSQLiteDriver().open("Cookie.db")
 
     init {
+        databaseConnection.prepare("PRAGMA journal_mode=DELETE").step();
+        databaseConnection.prepare("PRAGMA cipher = 'chacha20'").step();
+        databaseConnection.prepare("PRAGMA key = 'MyBigKey'").step();
         databaseConnection.execSQL(
             "CREATE TABLE IF NOT EXISTS Cookie (id INTEGER PRIMARY KEY, key TEXT UNIQUE, data TEXT)"
         )

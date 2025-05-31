@@ -96,6 +96,7 @@ kotlin {
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlin.stdlib.jdk8)
             implementation(libs.androidx.sqlite.bundled)
+            implementation("com.h2database:h2:2.3.232")
         }
     }
 }
