@@ -23,19 +23,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
@@ -43,28 +35,27 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import ru.ssshteam.potatocoder228.messenger.dto.UserAuthDTO
-import ru.ssshteam.potatocoder228.messenger.requests.RegistrationRequests.Companion.registrationRequest
+import ru.ssshteam.potatocoder228.messenger.viewmodels.RegistrationViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
-fun RegistrationPage(navController: NavHostController, onThemeChange: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+fun RegistrationPage(
+    navController: NavHostController,
+    onThemeChange: () -> Unit,
+    viewModel: RegistrationViewModel = viewModel { RegistrationViewModel() }
+) {
     Scaffold(
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
+            SnackbarHost(hostState = viewModel.snackbarHostState)
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    scope.launch {
-                        onThemeChange()
-                    }
+                    viewModel.changeTheme(onThemeChange)
                 }
             ) {
                 Icon(Icons.Outlined.Brightness6, contentDescription = "Сменить тему")
@@ -102,7 +93,6 @@ fun RegistrationPage(navController: NavHostController, onThemeChange: () -> Unit
                     )
                     RegistrationForm(
                         navController,
-                        snackbarHostState,
                         Modifier.align(alignment = CenterHorizontally)
                     )
                 }
@@ -112,20 +102,13 @@ fun RegistrationPage(navController: NavHostController, onThemeChange: () -> Unit
 
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 @Preview
 fun RegistrationForm(
     navController: NavHostController,
-    snackbarHostState: SnackbarHostState,
-    modifier: Modifier
+    modifier: Modifier,
+    viewModel: RegistrationViewModel = viewModel { RegistrationViewModel() }
 ) {
-    var loginInput by remember { mutableStateOf("") }
-    var passwordInput by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var repeatPasswordInput by remember { mutableStateOf("") }
-    var repeatPasswordVisible by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     Column(modifier = modifier, verticalArrangement = Arrangement.Center) {
         ElevatedCard(
             elevation = CardDefaults.cardElevation(
@@ -135,8 +118,8 @@ fun RegistrationForm(
         ) {
             TextField(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp),
-                value = loginInput,
-                onValueChange = { loginInput = it },
+                value = viewModel.loginInput.value,
+                onValueChange = { viewModel.loginInput.value = it },
                 label = { Text("Логин") },
                 singleLine = true,
                 placeholder = { Text("Логин") },
@@ -145,59 +128,58 @@ fun RegistrationForm(
 
                     val description = "Очистить"
 
-                    IconButton(onClick = { loginInput = "" }) {
+                    IconButton(onClick = { viewModel.loginInput.value = "" }) {
                         Icon(imageVector = image, description)
                     }
                 })
             TextField(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp),
-                value = passwordInput,
-                onValueChange = { passwordInput = it },
+                value = viewModel.passwordInput.value,
+                onValueChange = { viewModel.passwordInput.value = it },
                 label = { Text("Пароль") },
                 singleLine = true,
                 placeholder = { Text("Пароль") },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (viewModel.passwordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
-                    val image = if (passwordVisible) Icons.Filled.Visibility
+                    val image = if (viewModel.passwordVisible.value) Icons.Filled.Visibility
                     else Icons.Filled.VisibilityOff
 
-                    val description = if (passwordVisible) "Скрыть" else "Показать"
+                    val description = if (viewModel.passwordVisible.value) "Скрыть" else "Показать"
 
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    IconButton(onClick = {
+                        viewModel.passwordVisible.value = !viewModel.passwordVisible.value
+                    }) {
                         Icon(imageVector = image, description)
                     }
                 })
             TextField(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp),
-                value = repeatPasswordInput,
-                onValueChange = { repeatPasswordInput = it },
+                value = viewModel.repeatPasswordInput.value,
+                onValueChange = { viewModel.repeatPasswordInput.value = it },
                 label = { Text("Повторите пароль") },
                 singleLine = true,
                 placeholder = { Text("Повторите пароль") },
-                visualTransformation = if (repeatPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (viewModel.repeatPasswordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
-                    val image = if (repeatPasswordVisible) Icons.Filled.Visibility
+                    val image = if (viewModel.repeatPasswordVisible.value) Icons.Filled.Visibility
                     else Icons.Filled.VisibilityOff
 
                     val description =
-                        if (repeatPasswordVisible) "Скрыть пароль" else "Показать пароль"
+                        if (viewModel.repeatPasswordVisible.value) "Скрыть пароль" else "Показать пароль"
 
-                    IconButton(onClick = { repeatPasswordVisible = !repeatPasswordVisible }) {
+                    IconButton(onClick = {
+                        viewModel.repeatPasswordVisible.value =
+                            !viewModel.repeatPasswordVisible.value
+                    }) {
                         Icon(imageVector = image, description)
                     }
                 })
             Button(
                 modifier = Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp),
                 onClick = {
-                    scope.launch {
-                        registrationRequest(
-                            UserAuthDTO(loginInput, passwordInput),
-                            navController,
-                            snackbarHostState
-                        )
-                    }
+                    viewModel.registrate(navController)
                 }) {
                 Text("Зарегистрироваться")
             }

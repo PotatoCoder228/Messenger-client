@@ -132,7 +132,7 @@ class MessagesPageRequests {
             }
         }
 
-        suspend fun getChatsMessagesRequest(
+        suspend fun getChatMessagesRequest(
             chatDTO: ChatDTO?,
             snackbarHostState: SnackbarHostState,
             onMessagesChange: (MessageDTO) -> Unit,

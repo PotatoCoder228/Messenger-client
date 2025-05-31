@@ -86,6 +86,7 @@ kotlin {
             implementation(libs.krossbow.stomp.kxserialization.json)
             implementation(libs.androidx.material3)
             implementation(libs.krossbow.websocket.ktor)
+            implementation(libs.lifecycle.viewmodel.compose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
