@@ -62,7 +62,7 @@ fun SignInPage(
             if (viewModel.topBarModifier.value == null) {
                 Modifier.fillMaxWidth().also { viewModel.topBarModifier.value = it }
             }
-            TopBar()
+            authTopBar()
         },
     ) { innerPadding ->
         if (viewModel.cardBoxModifier.value == null) {
@@ -79,7 +79,7 @@ fun SignInPage(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopBar(
+fun authTopBar(
     viewModel: SignInViewModel = viewModel { SignInViewModel() }
 ) {
     viewModel.topBarModifier.value?.let {
