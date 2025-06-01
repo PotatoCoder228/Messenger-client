@@ -87,6 +87,7 @@ kotlin {
             implementation(libs.androidx.material3)
             implementation(libs.krossbow.websocket.ktor)
             implementation(libs.lifecycle.viewmodel.compose)
+            implementation(compose.components.resources)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -96,7 +97,6 @@ kotlin {
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlin.stdlib.jdk8)
             implementation(libs.androidx.sqlite.bundled)
-            implementation("com.h2database:h2:2.3.232")
         }
     }
 }
