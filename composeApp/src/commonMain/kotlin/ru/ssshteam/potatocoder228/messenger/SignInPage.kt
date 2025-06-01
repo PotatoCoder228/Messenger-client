@@ -2,6 +2,7 @@ package ru.ssshteam.potatocoder228.messenger
 
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
@@ -77,8 +81,10 @@ fun SignInPage(
                 })
         },
     ) { innerPadding ->
+        val columnModifier =
+            remember { mutableStateOf(Modifier.fillMaxSize().padding(innerPadding)) }
         Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = columnModifier.value,
             verticalArrangement = Arrangement.Center
         ) {
             Row(
@@ -106,13 +112,12 @@ fun SignInPage(
 }
 
 @Composable
-@Preview
 fun SignInForm(
     navController: NavHostController,
     modifier: Modifier,
     viewModel: SignInViewModel = viewModel { SignInViewModel() }
 ) {
-    Column(modifier = modifier.onPreviewKeyEvent {
+    Box(modifier = modifier.onPreviewKeyEvent {
         when {
             (it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
                 viewModel.signIn(navController)
@@ -121,64 +126,125 @@ fun SignInForm(
 
             else -> false
         }
-    }, verticalArrangement = Arrangement.Center) {
+    }) {
+        if(viewModel.fieldsCardModifier.value == null){
+            Modifier.align(Center).padding(10.dp)
+                .also { viewModel.fieldsCardModifier.value = it }
+        }
+        fieldsCard(navController)
+    }
+}
+
+@Composable
+fun fieldsCard(navController: NavHostController, viewModel: SignInViewModel = viewModel{SignInViewModel()}){
+    viewModel.fieldsCardModifier.value?.let {
         ElevatedCard(
             elevation = CardDefaults.cardElevation(
                 defaultElevation = 6.dp
             ), modifier = Modifier.padding(8.dp)
         ) {
-            TextField(
-                modifier = Modifier.align(CenterHorizontally).padding(10.dp),
-                value = viewModel.loginInput.value,
-                onValueChange = { viewModel.loginInput.value = it },
-                label = { Text("Логин") },
-                singleLine = true,
-                placeholder = { Text("Логин") },
-                trailingIcon = {
-                    val image = Icons.Filled.Clear
-
-                    val description = "Очистить"
-
-                    IconButton(onClick = { viewModel.loginInput.value = "" }) {
-                        Icon(imageVector = image, description)
-                    }
-                })
-            TextField(
-                modifier = Modifier.align(CenterHorizontally).padding(10.dp),
-                value = viewModel.passwordInput.value,
-                onValueChange = { viewModel.passwordInput.value = it },
-                label = { Text("Пароль") },
-                singleLine = true,
-                placeholder = { Text("Пароль") },
-                visualTransformation = if (viewModel.passwordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                trailingIcon = {
-                    val image = if (viewModel.passwordVisible.value) Icons.Filled.Visibility
-                    else Icons.Filled.VisibilityOff
-
-                    val description =
-                        if (viewModel.passwordVisible.value) "Скрыть пароль" else "Показать пароль"
-
-                    IconButton(onClick = {
-                        viewModel.passwordVisible.value = !viewModel.passwordVisible.value
-                    }) {
-                        Icon(imageVector = image, description)
-                    }
-                })
-            Button(
-                modifier = Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp),
-                onClick = {
-                    viewModel.signIn(navController)
-                }) {
-                Text("Авторизоваться")
+            if(viewModel.loginFieldModifier.value == null){
+                Modifier.align(CenterHorizontally).padding(10.dp)
+                    .also { viewModel.loginFieldModifier.value = it }
             }
-            TextButton(
-                modifier = Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp),
-                onClick = {
-                    navController.navigate(PageRoutes.RegistrationPage.route)
-                }) {
-                Text("Регистрация")
+
+            loginField()
+
+            if(viewModel.passwordFieldModifier.value == null){
+                Modifier.align(CenterHorizontally).padding(10.dp)
+                    .also { viewModel.passwordFieldModifier.value = it }
             }
+
+            passwordField()
+
+            if(viewModel.authButtonModifier.value == null){
+                Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp)
+                    .also { viewModel.authButtonModifier.value = it }
+            }
+            authButton(navController)
+            if(viewModel.regButtonModifier.value == null){
+                Modifier.align(CenterHorizontally).padding(10.dp, 0.dp, 10.dp, 0.dp)
+                    .also { viewModel.regButtonModifier.value = it }
+            }
+            regNavButton(navController)
+        }
+    }
+}
+
+
+
+@Composable
+fun loginField(viewModel: SignInViewModel = viewModel{SignInViewModel()}){
+    viewModel.loginFieldModifier.value?.let {
+        TextField(
+            modifier = it,
+            value = viewModel.loginInput.value,
+            onValueChange = { viewModel.loginInput.value = it },
+            label = { Text("Логин") },
+            singleLine = true,
+            placeholder = { Text("Логин") },
+            trailingIcon = {
+                val image = Icons.Filled.Clear
+
+                val description = "Очистить"
+
+                IconButton(onClick = { viewModel.loginInput.value = "" }) {
+                    Icon(imageVector = image, description)
+                }
+            })
+    }
+}
+
+@Composable
+fun passwordField(viewModel: SignInViewModel = viewModel{SignInViewModel()}){
+    viewModel.passwordFieldModifier.value?.let {
+        TextField(
+            modifier = it,
+            value = viewModel.passwordInput.value,
+            onValueChange = { viewModel.passwordInput.value = it },
+            label = { Text("Пароль") },
+            singleLine = true,
+            placeholder = { Text("Пароль") },
+            visualTransformation = if (viewModel.passwordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                val image = if (viewModel.passwordVisible.value) Icons.Filled.Visibility
+                else Icons.Filled.VisibilityOff
+
+                val description =
+                    if (viewModel.passwordVisible.value) "Скрыть пароль" else "Показать пароль"
+
+                IconButton(onClick = {
+                    viewModel.passwordVisible.value = !viewModel.passwordVisible.value
+                }) {
+                    Icon(imageVector = image, description)
+                }
+            })
+    }
+}
+
+@Composable
+fun authButton(navController: NavHostController, viewModel: SignInViewModel = viewModel{SignInViewModel()}){
+    viewModel.authButtonModifier.value?.let {
+        Button(
+            modifier = it,
+            onClick = {
+                viewModel.signIn(navController)
+            }) {
+            Text("Авторизоваться")
+        }
+    }
+}
+
+@Composable
+fun regNavButton(navController: NavHostController, viewModel: SignInViewModel = viewModel{SignInViewModel()}){
+    viewModel.regButtonModifier.value?.let {
+        TextButton(
+            modifier = it,
+            onClick = {
+                navController.navigate(PageRoutes.RegistrationPage.route)
+            }) {
+            Text("Регистрация")
         }
     }
 }

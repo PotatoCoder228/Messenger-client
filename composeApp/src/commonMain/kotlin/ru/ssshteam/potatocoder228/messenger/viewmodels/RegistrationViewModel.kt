@@ -17,6 +17,10 @@ class RegistrationViewModel : ViewModel() {
     var repeatPasswordVisible = mutableStateOf(false)
     val snackbarHostState = SnackbarHostState()
 
+    fun repeatHasErrors(): Boolean {
+        return repeatPasswordInput.value != passwordInput.value || repeatPasswordInput.value.length < 5
+    }
+
     fun registrate(navController: NavHostController) {
         viewModelScope.launch {
             registrationRequest(

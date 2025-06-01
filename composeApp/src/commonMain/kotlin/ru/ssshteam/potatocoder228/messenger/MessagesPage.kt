@@ -100,6 +100,8 @@ import ru.ssshteam.potatocoder228.messenger.viewmodels.AppViewModel
 import ru.ssshteam.potatocoder228.messenger.viewmodels.MessagesViewModel
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
+// TODO contentType = { it.type }
+
 enum class UiState {
     Loading, Loaded
 }

@@ -159,6 +159,7 @@ fun RegistrationForm(
                 onValueChange = { viewModel.repeatPasswordInput.value = it },
                 label = { Text("Повторите пароль") },
                 singleLine = true,
+                isError = viewModel.repeatHasErrors(),
                 placeholder = { Text("Повторите пароль") },
                 visualTransformation = if (viewModel.repeatPasswordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
