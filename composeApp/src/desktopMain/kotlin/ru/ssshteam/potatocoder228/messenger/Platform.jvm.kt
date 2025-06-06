@@ -1,6 +1,6 @@
 package ru.ssshteam.potatocoder228.messenger
 
-class JVMPlatform: Platform {
+class JVMPlatform : Platform {
     override val name: String = "Java"
 }
 

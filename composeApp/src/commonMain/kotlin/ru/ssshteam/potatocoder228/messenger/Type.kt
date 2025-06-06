@@ -3,9 +3,9 @@ package ru.ssshteam.potatocoder228.messenger
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontFamily
+import messenger.composeapp.generated.resources.JetBrainsMono_Medium
+import messenger.composeapp.generated.resources.JetBrainsMono_SemiBold
 import messenger.composeapp.generated.resources.Res
-import messenger.composeapp.generated.resources.Roboto_Medium
-import messenger.composeapp.generated.resources.Roboto_SemiBold
 import org.jetbrains.compose.resources.Font
 
 // Default Material 3 typography values
@@ -14,12 +14,12 @@ val baseline = Typography()
 
 val displayFontFamily
     @Composable // Composable is required for loading font from compose resources
-    get() = FontFamily(Font(resource = Res.font.Roboto_SemiBold))
+    get() = FontFamily(Font(resource = Res.font.JetBrainsMono_SemiBold))
 
 
 val bodyFontFamily
     @Composable // Composable is required for loading font from compose resources
-    get() = FontFamily(Font(resource = Res.font.Roboto_Medium))
+    get() = FontFamily(Font(resource = Res.font.JetBrainsMono_Medium))
 
 // Or you can also apply font to all styles
 val AppTypography

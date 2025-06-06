@@ -1,13 +1,14 @@
 package ru.ssshteam.potatocoder228.messenger.viewmodels
 
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.material3.DrawerState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
@@ -36,25 +37,28 @@ import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 class MessagesViewModel : ViewModel() {
-
     @OptIn(ExperimentalAtomicApi::class)
     var chatsSessionIdentificator: AtomicInt = AtomicInt(0)
-    val chatsSessionMutex = Mutex()
-    var chatsCurrentSession: StompSession? = null
+    private val chatsSessionMutex = Mutex()
+    private var chatsCurrentSession: StompSession? = null
     var expanded = mutableStateOf(false)
     val snackbarChatsHostState = SnackbarHostState()
     var addChatDialogExpanded = mutableStateOf(false)
     val chatNameInput = mutableStateOf("")
-    var key = mutableStateOf(0u)
+    var key = mutableStateOf(0)
 
-    val users = mutableStateListOf(key.value)
-    val usersMap = mutableStateOf(mutableMapOf<UInt, String>())
+    val emojiInput = mutableStateOf("")
+
+    var usersMap = mutableStateListOf(mutableStateOf(Pair(key.value, "")))
 
     @OptIn(ExperimentalAtomicApi::class)
     var messagesSessionIdentificator: AtomicInt = AtomicInt(0)
-    val messagesSessionMutex = Mutex()
-    var messagesCurrentSession: StompSession? = null
+    private val messagesSessionMutex = Mutex()
+    private var messagesCurrentSession: StompSession? = null
     val chats = mutableStateListOf<ChatDTO?>()
+
+    val emojiSelector = mutableStateOf(false)
+    val navRailVisible = mutableStateOf(false)
 
     val mainSnackbarHostState = mutableStateOf(SnackbarHostState())
     val messages = mutableStateListOf<MessageDTO?>()
@@ -62,23 +66,25 @@ class MessagesViewModel : ViewModel() {
     var selectedChat = mutableStateOf<ChatDTO?>(null)
     var detailPaneState = mutableStateOf(UiState.Loading)
 
+    val msgSettingsModifier: MutableState<Modifier?> = mutableStateOf(null)
+    val msgSettingsDropdownMenuModifier: MutableState<Modifier?> = mutableStateOf(null)
 
-    fun reverseNavigationSheetState(sheetState: DrawerState) {
-        viewModelScope.launch {
-            if (sheetState.isClosed) {
-                sheetState.open()
-            } else {
-                sheetState.close()
-            }
-        }
-    }
+
+    val msgBoxModifier: MutableState<Modifier?> = mutableStateOf(null)
+    val msgTextModifier: MutableState<Modifier?> = mutableStateOf(null)
+    val msgsColumnModifier: MutableState<Modifier?> = mutableStateOf(null)
+    val msgSenderTextModifier: MutableState<Modifier?> = mutableStateOf(null)
+
+
+    val chatSettingsDropdownMenuModifier: MutableState<Modifier?> = mutableStateOf(null)
+    val chatBoxModifier: MutableState<Modifier?> = mutableStateOf(null)
+    val chatNameTextModifier: MutableState<Modifier?> = mutableStateOf(null)
 
     fun loadChats() {
         viewModelScope.launch {
             getChatsRequest(
                 snackbarHostState = mainSnackbarHostState.value, onChatsChange = { chat ->
                     chats.add(chat)
-                    println("Chat added ${chat.id}")
                 })
         }
     }
@@ -105,8 +111,7 @@ class MessagesViewModel : ViewModel() {
 
     @OptIn(ExperimentalMaterial3AdaptiveApi::class)
     fun navigateToChats(
-        scope: CoroutineScope,
-        scaffoldNavigator: ThreePaneScaffoldNavigator<String>
+        scope: CoroutineScope, scaffoldNavigator: ThreePaneScaffoldNavigator<String>
     ) {
         viewModelScope.launch {
             withContext(scope.coroutineContext) {
@@ -121,7 +126,10 @@ class MessagesViewModel : ViewModel() {
 
     fun addChat() {
         viewModelScope.launch {
-            val usersList: MutableList<String> = usersMap.value.values.toMutableList()
+            val usersList: MutableList<String> = mutableListOf()
+            usersMap.forEach { userPair ->
+                usersList.add(userPair.value.second)
+            }
             MessagesPageRequests.addChatRequest(
                 ChatCreateDTO(
                     chatNameInput.value, usersList
@@ -241,7 +249,6 @@ class MessagesViewModel : ViewModel() {
                     )
                     while (sessionId == messagesSessionIdentificator.load()) {
                         subscription.collect { stompMessage ->
-                            println("message notice ${stompMessage.data?.id} ${stompMessage.operation}")
                             val first = messages.withIndex().firstOrNull {
                                 (stompMessage.data?.id ?: 0) == (it.value?.id ?: 0)
                             }

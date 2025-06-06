@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -108,7 +109,7 @@ fun SignUpForm(
             }
             regFieldsTitle()
             if (viewModel.fieldsCardModifier.value == null) {
-                Modifier.align(Center).padding(8.dp)
+                Modifier.align(Center).padding(8.dp).requiredWidth(300.dp)
                     .also { viewModel.fieldsCardModifier.value = it }
             }
             regFieldsCard(navController)

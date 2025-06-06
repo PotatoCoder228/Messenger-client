@@ -1,4 +1,3 @@
-
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -97,9 +96,28 @@ kotlin {
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlin.stdlib.jdk8)
             implementation(libs.androidx.sqlite.bundled)
+//            implementation(fileTree("C:\\Users\\a.atalyan\\Downloads\\openjfx-21.0.7_windows-x64_bin-sdk\\javafx-sdk-21.0.7\\lib") {
+//                // You can add as many include or exclude calls as you want
+//                include("*.jar")
+//            })
         }
     }
 }
+//
+//javafx {
+//    version = "21.0.7"
+//    configurations =
+//        arrayOf("implementation")
+//    modules(
+//        "javafx.base",
+//        "javafx.controls",
+//        "javafx.fxml",
+//        "javafx.graphics",
+//        "javafx.media",
+//        "javafx.swing",
+//        "javafx.web"
+//    )
+//}
 
 android {
     namespace = "ru.ssshteam.potatocoder228.messenger"
@@ -142,6 +160,7 @@ android {
     }
 }
 
+
 dependencies {
     implementation(libs.kotlin.stdlib.jdk8)
     implementation(libs.ktor.client.core)
@@ -149,6 +168,7 @@ dependencies {
     implementation(libs.ktor.client.websockets)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.androidx.runtime.android)
     debugImplementation(compose.uiTooling)
 }
 

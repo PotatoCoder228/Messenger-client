@@ -1,18 +1,30 @@
 package ru.ssshteam.potatocoder228.messenger
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import ru.ssshteam.potatocoder228.messenger.dto.EmojiDataDTO
 import ru.ssshteam.potatocoder228.messenger.viewmodels.AppViewModel
 
 var datastore: DataStore? = null
+var fileChooser: FileChooser? = null
+var emojis: EmojiDataDTO? = null
 
 @Composable
-@Preview
 fun App(viewModel: AppViewModel = viewModel { AppViewModel() }) {
+    val scope = rememberCoroutineScope()
+    rememberSaveable {
+        scope.launch {
+            emojis = Json.decodeFromString<EmojiDataDTO>(emojiJson)
+            emojiJson = ""
+        }
+    }
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = PageRoutes.SignInPage.route) {
 
