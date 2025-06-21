@@ -6,6 +6,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -64,6 +68,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDragHandle
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
@@ -76,10 +81,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterEnd
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Alignment.Companion.CenterStart
 import androidx.compose.ui.Alignment.Companion.CenterVertically
+import androidx.compose.ui.Alignment.Companion.Start
 import androidx.compose.ui.Alignment.Companion.TopEnd
 import androidx.compose.ui.Alignment.Companion.TopStart
 import androidx.compose.ui.Modifier
@@ -91,10 +98,13 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -119,6 +129,7 @@ fun MessagesPage(
     onThemeChange: () -> Unit,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
+    val scope = rememberCoroutineScope()
     Row {
         androidx.compose.animation.AnimatedVisibility(
             viewModel.navRailVisible.value,
@@ -161,6 +172,14 @@ fun MessagesPage(
                 directive = scaffoldNavigator.scaffoldDirective,
                 scaffoldState = scaffoldNavigator.scaffoldState,
                 listPane = {
+                    if (viewModel.fromExtraToDetail.value) {
+                        scope.launch {
+                            viewModel.fromExtraToDetail.value = false
+                            scaffoldNavigator.navigateTo(
+                                ListDetailPaneScaffoldRole.Detail
+                            )
+                        }
+                    }
                     AnimatedPane(
                         modifier = Modifier.preferredWidth(500.dp).fillMaxWidth(),
                         enterTransition = fadeIn(),
@@ -170,14 +189,276 @@ fun MessagesPage(
                     }
                 },
                 detailPane = {
+                    if (viewModel.fromDetailToList.value) {
+                        scope.launch {
+                            viewModel.fromDetailToList.value = false
+                            scaffoldNavigator.navigateTo(ListDetailPaneScaffoldRole.List)
+                        }
+                    }
+                    val density = LocalDensity.current
                     AnimatedPane(
-                        modifier = Modifier.preferredWidth(500.dp).fillMaxWidth(),
+                        modifier =
+                            Modifier.fillMaxSize().onGloballyPositioned { layoutCoordinates ->
+                                viewModel.screenSize.value = layoutCoordinates.size
+                                if (viewModel.offsetX.value == 0f) {
+                                    viewModel.offsetX.value = viewModel.screenSize.value.width / 2f
+                                }
+                            }.width(with(density) { viewModel.offsetX.value.toDp() }),
                         enterTransition = fadeIn(),
                         exitTransition = fadeOut()
                     ) {
-                        listDetailsContent(scaffoldNavigator)
+                        listDetailsContent(scaffoldNavigator, density)
                     }
-                })
+                },
+                extraPane = {
+                    AnimatedPane(
+                        modifier = Modifier.fillMaxWidth(),
+                        enterTransition = fadeIn(),
+                        exitTransition = fadeOut()
+                    ) {
+                        AnimatedVisibility(
+                            viewModel.selectedMsg.value != null, enter = fadeIn(), exit = fadeOut()
+                        ) {
+                            Scaffold(topBar = {
+                                TopAppBar(title = {
+                                    Text(
+                                        "Обсуждение"
+                                    )
+                                }, navigationIcon = {
+                                    IconButton(onClick = {
+                                        scope.launch {
+                                            viewModel.fromExtraToDetail.value = true
+                                            scaffoldNavigator.navigateTo(
+                                                ListDetailPaneScaffoldRole.List
+                                            )
+                                            viewModel.selectedMsg.value = null
+                                        }
+                                    }) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Назад"
+                                        )
+                                    }
+                                })
+                            }, bottomBar = {
+                                TextField(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    value = "Введите сообщение!",
+                                    onValueChange = {},
+                                )
+                            }) {
+                                Scaffold(
+                                    modifier = Modifier.padding(it),
+                                    topBar = {
+                                        Column {
+                                            Card(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(5.dp),
+                                                onClick = {}
+                                            ) {
+                                                if (viewModel.chatBoxModifier.value == null) {
+                                                    Modifier.padding(2.dp).fillMaxSize().also {
+                                                        viewModel.chatBoxModifier.value = it
+                                                    }
+                                                }
+                                                Box(
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Person,
+                                                        contentDescription = "Person",
+                                                        modifier = Modifier.size(
+                                                            60.dp
+                                                        ).clip(CircleShape).align(TopStart)
+                                                    )
+
+                                                    if (viewModel.msgSenderTextModifier.value == null) {
+                                                        Modifier.align(TopStart)
+                                                            .offset { IntOffset(60, 0) }
+                                                            .also {
+                                                                viewModel.msgSenderTextModifier.value =
+                                                                    it
+                                                            }
+                                                    }
+                                                    msgSenderText(viewModel.selectedMsg.value?.sender)
+
+                                                    if (viewModel.msgTextModifier.value == null) {
+                                                        Modifier.align(
+                                                            CenterStart
+                                                        ).offset { IntOffset(60, 0) }.padding(
+                                                            0.dp, 25.dp, 100.dp, 0.dp
+                                                        ).also {
+                                                            viewModel.msgTextModifier.value = it
+                                                        }
+                                                    }
+
+                                                    msgText(viewModel.selectedMsg.value?.message)
+
+                                                    if (viewModel.msgSettingsModifier.value == null) {
+                                                        Modifier.align(
+                                                            CenterEnd
+                                                        ).padding(6.dp).also {
+                                                            viewModel.msgSettingsModifier.value = it
+                                                        }
+                                                    }
+
+                                                    if (viewModel.msgSettingsDropdownMenuModifier.value == null) {
+                                                        Modifier.align(
+                                                            TopEnd
+                                                        ).padding(6.dp).also {
+                                                            viewModel.msgSettingsDropdownMenuModifier.value =
+                                                                it
+                                                        }
+                                                    }
+                                                    msgSettings()
+                                                }
+                                            }
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(
+                                                    0.dp,
+                                                    10.dp,
+                                                    0.dp,
+                                                    10.dp
+                                                ), thickness = 2.dp
+                                            )
+                                        }
+                                    }) {
+                                    LazyColumn(modifier = Modifier.padding(it).fillMaxHeight()) {
+                                        item {
+                                            ElevatedCard(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(5.dp),
+                                                onClick = {}
+                                            ) {
+                                                if (viewModel.chatBoxModifier.value == null) {
+                                                    Modifier.padding(2.dp).fillMaxSize().also {
+                                                        viewModel.chatBoxModifier.value = it
+                                                    }
+                                                }
+                                                Box(
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Person,
+                                                        contentDescription = "Person",
+                                                        modifier = Modifier.size(
+                                                            60.dp
+                                                        ).clip(CircleShape).align(TopStart)
+                                                    )
+
+                                                    if (viewModel.msgSenderTextModifier.value == null) {
+                                                        Modifier.align(TopStart)
+                                                            .offset { IntOffset(60, 0) }
+                                                            .also {
+                                                                viewModel.msgSenderTextModifier.value =
+                                                                    it
+                                                            }
+                                                    }
+                                                    msgSenderText(viewModel.selectedMsg.value?.sender)
+
+                                                    if (viewModel.msgTextModifier.value == null) {
+                                                        Modifier.align(
+                                                            CenterStart
+                                                        ).offset { IntOffset(60, 0) }.padding(
+                                                            0.dp, 25.dp, 100.dp, 0.dp
+                                                        ).also {
+                                                            viewModel.msgTextModifier.value = it
+                                                        }
+                                                    }
+
+                                                    msgText("Сообщение в макете для теста")
+
+                                                    if (viewModel.msgSettingsModifier.value == null) {
+                                                        Modifier.align(
+                                                            CenterEnd
+                                                        ).padding(6.dp).also {
+                                                            viewModel.msgSettingsModifier.value = it
+                                                        }
+                                                    }
+
+                                                    if (viewModel.msgSettingsDropdownMenuModifier.value == null) {
+                                                        Modifier.align(
+                                                            TopEnd
+                                                        ).padding(6.dp).also {
+                                                            viewModel.msgSettingsDropdownMenuModifier.value =
+                                                                it
+                                                        }
+                                                    }
+                                                    msgSettings()
+                                                }
+                                            }
+                                        }
+                                        item {
+                                            ElevatedCard(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(5.dp),
+                                                onClick = {}
+                                            ) {
+                                                if (viewModel.chatBoxModifier.value == null) {
+                                                    Modifier.padding(2.dp).fillMaxSize().also {
+                                                        viewModel.chatBoxModifier.value = it
+                                                    }
+                                                }
+                                                Box(
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Person,
+                                                        contentDescription = "Person",
+                                                        modifier = Modifier.size(
+                                                            60.dp
+                                                        ).clip(CircleShape).align(TopStart)
+                                                    )
+
+                                                    if (viewModel.msgSenderTextModifier.value == null) {
+                                                        Modifier.align(TopStart)
+                                                            .offset { IntOffset(60, 0) }
+                                                            .also {
+                                                                viewModel.msgSenderTextModifier.value =
+                                                                    it
+                                                            }
+                                                    }
+                                                    msgSenderText(viewModel.selectedMsg.value?.sender)
+
+                                                    if (viewModel.msgTextModifier.value == null) {
+                                                        Modifier.align(
+                                                            CenterStart
+                                                        ).offset { IntOffset(60, 0) }.padding(
+                                                            0.dp, 25.dp, 100.dp, 0.dp
+                                                        ).also {
+                                                            viewModel.msgTextModifier.value = it
+                                                        }
+                                                    }
+
+                                                    msgText("Сообщение в макете для теста")
+
+                                                    if (viewModel.msgSettingsModifier.value == null) {
+                                                        Modifier.align(
+                                                            CenterEnd
+                                                        ).padding(6.dp).also {
+                                                            viewModel.msgSettingsModifier.value = it
+                                                        }
+                                                    }
+
+                                                    if (viewModel.msgSettingsDropdownMenuModifier.value == null) {
+                                                        Modifier.align(
+                                                            TopEnd
+                                                        ).padding(6.dp).also {
+                                                            viewModel.msgSettingsDropdownMenuModifier.value =
+                                                                it
+                                                        }
+                                                    }
+                                                    msgSettings()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
         }
     }
 }
@@ -303,7 +584,7 @@ fun chatsAddNewChatDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun chatsSearchBarInput(
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
@@ -570,24 +851,40 @@ fun navRail(
 @Composable
 fun listDetailsContent(
     scaffoldNavigator: ThreePaneScaffoldNavigator<String>,
+    density: Density,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     AnimatedVisibility(
         viewModel.selectedChat.value != null, enter = fadeIn(), exit = fadeOut()
     ) {
         val lazyColumnListState = rememberLazyListState()
-        Scaffold(topBar = {
-            msgsScaffoldTopBar(scaffoldNavigator)
-        }, bottomBar = {
-            msgsScaffoldBottomContent(lazyColumnListState)
-        }) {
-
+        Scaffold(
+            modifier = Modifier.width(with(density) { viewModel.offsetX.value.toDp() }),
+            topBar = {
+                msgsScaffoldTopBar(scaffoldNavigator)
+            }, bottomBar = {
+                msgsScaffoldBottomContent(lazyColumnListState)
+            }) {
             if (viewModel.msgsColumnModifier.value == null) {
                 Modifier.padding(it).fillMaxHeight().also {
                     viewModel.msgsColumnModifier.value = it
                 }
             }
-            msgsColumn(lazyColumnListState, scaffoldNavigator)
+            msgsColumn(lazyColumnListState, scaffoldNavigator, density)
+            VerticalDragHandle(
+                modifier =
+                    Modifier.draggable(
+                        orientation = Orientation.Horizontal,
+                        state =
+                            rememberDraggableState { delta ->
+                                viewModel.offsetX.value =
+                                    (viewModel.offsetX.value + delta).coerceIn(
+                                        with(density) { 48.dp.toPx() },
+                                        viewModel.screenSize.value.width.toFloat()
+                                    )
+                            }
+                    )
+            )
         }
     }
 }
@@ -700,6 +997,8 @@ fun msgsScaffoldTopBar(
         }
     }, navigationIcon = {
         IconButton(onClick = {
+            viewModel.selectedMsg.value = null
+            viewModel.fromDetailToList.value = true
             viewModel.navigateToChats(scope, scaffoldNavigator)
         }) {
             Icon(
@@ -721,6 +1020,7 @@ fun msgsScaffoldTopBar(
 fun msgsColumn(
     lazyColumnListState: LazyListState,
     scaffoldNavigator: ThreePaneScaffoldNavigator<String>,
+    density: Density,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     viewModel.msgsColumnModifier.value?.let {
@@ -729,7 +1029,7 @@ fun msgsColumn(
             viewModel.subscribeToMessagesUpdates(lazyColumnListState)
         }
         LazyColumn(
-            modifier = it, reverseLayout = true, state = lazyColumnListState
+            modifier = it.width(with(density) { viewModel.offsetX.value.toDp() }), reverseLayout = true, state = lazyColumnListState
         ) {
             items(
                 items = viewModel.messages, key = { message -> message?.id ?: 0 }) { item ->
@@ -737,8 +1037,9 @@ fun msgsColumn(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         scope.launch {
+                            viewModel.selectedMsg.value = item
                             scaffoldNavigator.navigateTo(
-                                ListDetailPaneScaffoldRole.Detail
+                                ListDetailPaneScaffoldRole.Extra
                             )
                         }
                     },

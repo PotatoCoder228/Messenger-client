@@ -39,7 +39,7 @@ class SignInRequests {
             httpResponse: HttpResponse, snackbarHostState: SnackbarHostState
         ) {
             snackbarHostState.showSnackbar(
-                message = "Sign in error. Reason: ${httpResponse.status.description}, ${httpResponse.status.description}",
+                message = "Sign in error. Reason: ${httpResponse.status.description}, ${httpResponse.body<String>()}",
                 actionLabel = "Ok",
                 duration = SnackbarDuration.Indefinite
             )

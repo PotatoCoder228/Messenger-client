@@ -9,6 +9,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
@@ -64,7 +65,11 @@ class MessagesViewModel : ViewModel() {
     val messages = mutableStateListOf<MessageDTO?>()
     val message = mutableStateOf("")
     var selectedChat = mutableStateOf<ChatDTO?>(null)
+    var selectedMsg = mutableStateOf<MessageDTO?>(null)
     var detailPaneState = mutableStateOf(UiState.Loading)
+
+    val fromExtraToDetail = mutableStateOf(false)
+    val fromDetailToList = mutableStateOf(false)
 
     val msgSettingsModifier: MutableState<Modifier?> = mutableStateOf(null)
     val msgSettingsDropdownMenuModifier: MutableState<Modifier?> = mutableStateOf(null)
@@ -79,6 +84,9 @@ class MessagesViewModel : ViewModel() {
     val chatSettingsDropdownMenuModifier: MutableState<Modifier?> = mutableStateOf(null)
     val chatBoxModifier: MutableState<Modifier?> = mutableStateOf(null)
     val chatNameTextModifier: MutableState<Modifier?> = mutableStateOf(null)
+
+    var offsetX  = mutableStateOf(0f)
+    var screenSize = mutableStateOf(IntSize.Zero)
 
     fun loadChats() {
         viewModelScope.launch {
@@ -118,7 +126,7 @@ class MessagesViewModel : ViewModel() {
                 selectedChat.value = null
                 detailPaneState.value = UiState.Loading
                 scaffoldNavigator.navigateTo(
-                    ListDetailPaneScaffoldRole.List
+                    ListDetailPaneScaffoldRole.Detail
                 )
             }
         }

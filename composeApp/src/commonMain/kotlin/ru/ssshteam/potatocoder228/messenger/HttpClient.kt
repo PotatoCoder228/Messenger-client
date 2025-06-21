@@ -13,8 +13,8 @@ import org.hildan.krossbow.stomp.StompClient
 import org.hildan.krossbow.websocket.ktor.KtorWebSocketClient
 import ru.ssshteam.potatocoder228.messenger.dto.TokenDTO
 
-const val httpHost = "http://46.229.212.56:9087"
-const val wsHost = "ws://46.229.212.56:9087/ws"
+const val httpHost = "https://shhhchat.ru:9087/"
+const val wsHost = "wss://shhhchat.ru:9087/ws"
 //const val httpHost = "http://localhost:9087"
 //const val wsHost = "ws://localhost:9087/ws"
 
