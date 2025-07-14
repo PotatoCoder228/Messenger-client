@@ -401,14 +401,14 @@ fun chatBox(
 
             Text(
                 modifier = Modifier.align(TopStart).padding(0.dp, 5.dp, 150.dp, 0.dp)
-                    .offset { IntOffset(60, 0) },
+                    .offset(60.dp, 0.dp),
                 text = chat?.name ?: "Unknown",
                 style = MaterialTheme.typography.titleMedium,
                 overflow = TextOverflow.Ellipsis,
                 maxLines = 1
             )
             if (viewModel.chatNameTextModifier.value == null) {
-                Modifier.align(CenterStart).offset { IntOffset(60, 0) }
+                Modifier.align(CenterStart).offset(60.dp, 0.dp)
                     .padding(0.dp, 20.dp, 150.dp, 0.dp).also {
                         viewModel.chatNameTextModifier.value = it
                     }
@@ -419,7 +419,7 @@ fun chatBox(
             Badge(
                 modifier = Modifier.align(
                     CenterEnd
-                ).padding(6.dp).offset { IntOffset(-60, 0) },
+                ).padding(6.dp).offset((-60).dp, 0.dp),
                 containerColor = Color.Red,
                 contentColor = Color.White,
 
@@ -494,7 +494,7 @@ fun navRail(
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     NavigationRail {
-        Column(modifier = Modifier.offset { IntOffset(0, 10) }) {
+        Column(modifier = Modifier.offset(0.dp, 10.dp)) {
             NavigationRailItem(selected = false, onClick = {
                 viewModel.navRailVisible.value = false
             }, icon = {
@@ -773,7 +773,7 @@ fun msgBox(
             )
 
             if (viewModel.msgSenderTextModifier.value == null) {
-                Modifier.align(TopStart).offset { IntOffset(60, 0) }.also {
+                Modifier.align(TopStart).offset(60.dp, 0.dp).also {
                     viewModel.msgSenderTextModifier.value = it
                 }
             }
@@ -782,7 +782,7 @@ fun msgBox(
             if (viewModel.msgTextModifier.value == null) {
                 Modifier.align(
                     CenterStart
-                ).offset { IntOffset(60, 0) }.padding(
+                ).offset(60.dp, 0.dp).padding(
                     0.dp, 25.dp, 100.dp, 0.dp
                 ).also {
                     viewModel.msgTextModifier.value = it

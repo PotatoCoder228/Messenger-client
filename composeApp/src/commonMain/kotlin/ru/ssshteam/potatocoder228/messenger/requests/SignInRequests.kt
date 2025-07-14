@@ -29,7 +29,7 @@ class SignInRequests {
             val tokenDto: TokenDTO = httpResponse.body()
 
             datastore?.saveCookie("token", tokenDto.token)
-            datastore?.saveCookie("userId", tokenDto.userId.toString())
+            datastore?.saveCookie("userId", tokenDto.userId)
 
             token = mutableStateOf(tokenDto)
             navController.navigate(PageRoutes.MessagesPage.route)
@@ -39,7 +39,7 @@ class SignInRequests {
             httpResponse: HttpResponse, snackbarHostState: SnackbarHostState
         ) {
             snackbarHostState.showSnackbar(
-                message = "Sign in error. Reason: ${httpResponse.status.description}, ${httpResponse.status.description}",
+                message = "Sign in error. Reason: ${httpResponse.status.description}, ${httpResponse.body<String>()}",
                 actionLabel = "Ok",
                 duration = SnackbarDuration.Indefinite
             )

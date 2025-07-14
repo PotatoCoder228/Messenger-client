@@ -10,4 +10,3 @@
 -keepclasseswithmembernames,includedescriptorclasses class * {
     native <methods>;
 }
--optimizationpasses 5

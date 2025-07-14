@@ -35,6 +35,7 @@ import ru.ssshteam.potatocoder228.messenger.token
 import ru.ssshteam.potatocoder228.messenger.wsHost
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.uuid.ExperimentalUuidApi
 
 class MessagesViewModel : ViewModel() {
     @OptIn(ExperimentalAtomicApi::class)
@@ -140,6 +141,7 @@ class MessagesViewModel : ViewModel() {
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     fun sendMessage(lazyColumnListState: LazyListState) {
         viewModelScope.launch {
             MessagesPageRequests.sendMessageRequest(

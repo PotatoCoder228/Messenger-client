@@ -10,6 +10,8 @@ import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.content
+import io.ktor.client.statement.request
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
@@ -26,7 +28,7 @@ class MessagesPageRequests {
             httpResponse: HttpResponse, snackbarHostState: SnackbarHostState
         ) {
             snackbarHostState.showSnackbar(
-                message = "Error! Reason: ${httpResponse.status.description}, ${httpResponse.status.description}",
+                message = "Error! Reason: ${httpResponse}, ${httpResponse.status.description}",
                 actionLabel = "Ok",
                 duration = SnackbarDuration.Indefinite
             )
@@ -77,9 +79,11 @@ class MessagesPageRequests {
                 if (httpResponse.status.value in 200..299) {
 //                    onChatsChange(httpResponse.body())
                 } else {
+                    println(httpResponse.status.value)
                     errorAction(httpResponse, snackbarHostState)
                 }
             } catch (e: Throwable) {
+
                 exceptionAction(e, snackbarHostState)
             }
         }

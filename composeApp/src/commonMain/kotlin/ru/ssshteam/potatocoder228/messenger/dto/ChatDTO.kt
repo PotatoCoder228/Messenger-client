@@ -9,4 +9,4 @@ import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 @Serializable
 @Immutable
 @JsonIgnoreUnknownKeys
-data class ChatDTO(val id: Int, val name: String = "", val role: String = "")
+data class ChatDTO(val id: String, val name: String = "", val role: String = "")
