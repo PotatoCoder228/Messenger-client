@@ -7,6 +7,7 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
@@ -26,6 +27,7 @@ import ru.ssshteam.potatocoder228.messenger.client
 import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
 import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
+import ru.ssshteam.potatocoder228.messenger.dto.NotificationDTO
 import ru.ssshteam.potatocoder228.messenger.dto.OperationDTO
 import ru.ssshteam.potatocoder228.messenger.json
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests
@@ -43,6 +45,7 @@ class MessagesViewModel : ViewModel() {
     private val chatsSessionMutex = Mutex()
     private var chatsCurrentSession: StompSession? = null
     var expanded = mutableStateOf(false)
+    var editingMode = mutableStateOf(false)
     val snackbarChatsHostState = SnackbarHostState()
     var addChatDialogExpanded = mutableStateOf(false)
     val chatNameInput = mutableStateOf("")
@@ -56,6 +59,11 @@ class MessagesViewModel : ViewModel() {
     var messagesSessionIdentificator: AtomicInt = AtomicInt(0)
     private val messagesSessionMutex = Mutex()
     private var messagesCurrentSession: StompSession? = null
+
+    @OptIn(ExperimentalAtomicApi::class)
+    var notificationsSessionIdentificator: AtomicInt = AtomicInt(0)
+    private val notificationsSessionMutex = Mutex()
+    private var notificationsCurrentSession: StompSession? = null
     val chats = mutableStateListOf<ChatDTO?>()
 
     val emojiSelector = mutableStateOf(false)
@@ -63,9 +71,15 @@ class MessagesViewModel : ViewModel() {
 
     val mainSnackbarHostState = mutableStateOf(SnackbarHostState())
     val messages = mutableStateListOf<MessageDTO?>()
+
+    val unreadedCountMap = mutableStateMapOf<String, Int>()
     val message = mutableStateOf("")
     var selectedChat = mutableStateOf<ChatDTO?>(null)
+    var selectedMsg = mutableStateOf<MessageDTO?>(null)
     var detailPaneState = mutableStateOf(UiState.Loading)
+
+    val fromExtraToDetail = mutableStateOf(false)
+    val fromDetailToList = mutableStateOf(false)
 
     val msgSettingsModifier: MutableState<Modifier?> = mutableStateOf(null)
     val msgSettingsDropdownMenuModifier: MutableState<Modifier?> = mutableStateOf(null)
@@ -80,12 +94,18 @@ class MessagesViewModel : ViewModel() {
     val chatSettingsDropdownMenuModifier: MutableState<Modifier?> = mutableStateOf(null)
     val chatBoxModifier: MutableState<Modifier?> = mutableStateOf(null)
     val chatNameTextModifier: MutableState<Modifier?> = mutableStateOf(null)
+    val chatBadgeCounterModifier: MutableState<Modifier?> = mutableStateOf(null)
+
+    @OptIn(ExperimentalUuidApi::class)
+    val msgDTO: MutableState<MessageDTO> = mutableStateOf(MessageDTO())
 
     fun loadChats() {
         viewModelScope.launch {
             getChatsRequest(
                 snackbarHostState = mainSnackbarHostState.value, onChatsChange = { chat ->
                     chats.add(chat)
+                    unreadedCountMap[chat.id] =
+                        chats.count { other -> chat.lastEnter!! < other!!.lastEnter!! }
                 })
         }
     }
@@ -96,6 +116,7 @@ class MessagesViewModel : ViewModel() {
         viewModelScope.launch {
             if (chatDTO != null) {
                 selectedChat.value = chatDTO
+                unreadedCountMap[chatDTO.id] = 0
             }
             detailPaneState.value = UiState.Loading
             messages.clear()
@@ -119,7 +140,7 @@ class MessagesViewModel : ViewModel() {
                 selectedChat.value = null
                 detailPaneState.value = UiState.Loading
                 scaffoldNavigator.navigateTo(
-                    ListDetailPaneScaffoldRole.List
+                    ListDetailPaneScaffoldRole.Detail
                 )
             }
         }
@@ -144,14 +165,42 @@ class MessagesViewModel : ViewModel() {
     @OptIn(ExperimentalUuidApi::class)
     fun sendMessage(lazyColumnListState: LazyListState) {
         viewModelScope.launch {
+            msgDTO.value = MessageDTO()
+            msgDTO.value.message = message.value
             MessagesPageRequests.sendMessageRequest(
                 selectedChat.value,
-                MessageDTO(message = message.value),
+                msgDTO.value,
                 { item -> },
                 mainSnackbarHostState.value
             )
             lazyColumnListState.scrollToItem(0)
             message.value = ""
+        }
+    }
+
+    fun deleteMessage() {
+        viewModelScope.launch {
+            MessagesPageRequests.deleteMessageRequest(
+                selectedChat.value,
+                msgDTO.value,
+                { item -> },
+                mainSnackbarHostState.value
+            )
+        }
+    }
+
+    fun updateMessage(lazyColumnListState: LazyListState) {
+        viewModelScope.launch {
+            msgDTO.value.message = message.value
+            MessagesPageRequests.updateMessageRequest(
+                selectedChat.value,
+                msgDTO.value,
+                { item -> },
+                mainSnackbarHostState.value
+            )
+            lazyColumnListState.scrollToItem(0)
+            message.value = ""
+            editingMode.value = false
         }
     }
 
@@ -281,6 +330,63 @@ class MessagesViewModel : ViewModel() {
                                 "UPDATE" -> {
                                     if (first != null) {
                                         messages[first.index] = stompMessage.data
+                                    }
+                                }
+                            }
+                            MessagesPageRequests.updateLastEnterRequest(
+                                selectedChat.value,
+                                { item -> },
+                                mainSnackbarHostState.value
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalAtomicApi::class)
+    fun subscribeToNotifications() {
+        viewModelScope.launch {
+            val identificator = notificationsSessionIdentificator.addAndFetch(1)
+            val session: StompSession = client.connect(
+                wsHost,
+                customStompConnectHeaders = mapOf("Authorization" to "Bearer ${token?.value?.token}")
+            )
+            notificationsSessionMutex.withLock {
+                if (notificationsCurrentSession != null) {
+                    notificationsCurrentSession?.disconnect()
+                }
+                notificationsCurrentSession = session
+            }
+            session.use {
+                val jsonStompSession = session.withJsonConversions(json)
+                jsonStompSession.use { s ->
+                    val subscription: Flow<NotificationDTO> = s.subscribe(
+                        StompSubscribeHeaders("/topic/user/${token?.value?.userId}/notifications"),
+                        NotificationDTO.serializer()
+                    )
+                    while (identificator == notificationsSessionIdentificator.load()) {
+                        subscription.collect { stompMessage ->
+                            if (identificator != notificationsSessionIdentificator.load()) {
+                                return@collect
+                            }
+                            val first = chats.withIndex().firstOrNull {
+                                (stompMessage.chatId) == (it.value?.id)
+                            }
+                            when (stompMessage.type) {
+                                "NEW_MESSAGE" -> {
+                                    try {
+                                        if (first != null && selectedChat.value?.id != first.value?.id) {
+                                            if (unreadedCountMap[stompMessage.chatId] != 0 && unreadedCountMap[stompMessage.chatId] != null) {
+                                                unreadedCountMap[stompMessage.chatId] =
+                                                    unreadedCountMap[stompMessage.chatId]!! + 1
+                                            } else {
+                                                unreadedCountMap[stompMessage.chatId] = 1
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
                                     }
                                 }
                             }

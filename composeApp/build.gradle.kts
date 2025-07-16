@@ -87,6 +87,7 @@ kotlin {
             implementation(libs.krossbow.websocket.ktor)
             implementation(libs.lifecycle.viewmodel.compose)
             implementation(compose.components.resources)
+            implementation(libs.kotlinx.datetime)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

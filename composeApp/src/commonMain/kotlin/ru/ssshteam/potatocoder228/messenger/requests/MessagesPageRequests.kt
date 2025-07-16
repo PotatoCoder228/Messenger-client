@@ -8,10 +8,9 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.content
-import io.ktor.client.statement.request
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
@@ -102,6 +101,79 @@ class MessagesPageRequests {
                         }
                         contentType(ContentType.Application.Json)
                         setBody(messageDTO)
+                    }
+                if (httpResponse.status.value in 200..299) {
+//                    onChatsChange(httpResponse.body())
+                } else {
+                    errorAction(httpResponse, snackbarHostState)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState)
+            }
+        }
+
+        suspend fun deleteMessageRequest(
+            chatDTO: ChatDTO?,
+            messageDTO: MessageDTO?,
+            onChatsChange: (ChatDTO) -> Unit,
+            snackbarHostState: SnackbarHostState
+        ) {
+            try {
+                val httpResponse: HttpResponse =
+                    httpClient.delete("$httpHost/chat/${chatDTO?.id}/message/${messageDTO?.id}") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        contentType(ContentType.Application.Json)
+                        setBody(messageDTO)
+                    }
+                if (httpResponse.status.value in 200..299) {
+//                    onChatsChange(httpResponse.body())
+                } else {
+                    errorAction(httpResponse, snackbarHostState)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState)
+            }
+        }
+
+        suspend fun updateMessageRequest(
+            chatDTO: ChatDTO?,
+            messageDTO: MessageDTO?,
+            onChatsChange: (ChatDTO) -> Unit,
+            snackbarHostState: SnackbarHostState
+        ) {
+            try {
+                val httpResponse: HttpResponse =
+                    httpClient.post("$httpHost/chat/${chatDTO?.id}/update") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        contentType(ContentType.Application.Json)
+                        setBody(messageDTO)
+                    }
+                if (httpResponse.status.value in 200..299) {
+//                    onChatsChange(httpResponse.body())
+                } else {
+                    errorAction(httpResponse, snackbarHostState)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState)
+            }
+        }
+
+        suspend fun updateLastEnterRequest(
+            chatDTO: ChatDTO?,
+            onChatsChange: (ChatDTO) -> Unit,
+            snackbarHostState: SnackbarHostState
+        ) {
+            try {
+                val httpResponse: HttpResponse =
+                    httpClient.put("$httpHost/chat/${chatDTO?.id}/enter") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        contentType(ContentType.Application.Json)
                     }
                 if (httpResponse.status.value in 200..299) {
 //                    onChatsChange(httpResponse.body())
