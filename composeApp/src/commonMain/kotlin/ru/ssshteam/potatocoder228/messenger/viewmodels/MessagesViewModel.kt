@@ -104,8 +104,7 @@ class MessagesViewModel : ViewModel() {
             getChatsRequest(
                 snackbarHostState = mainSnackbarHostState.value, onChatsChange = { chat ->
                     chats.add(chat)
-                    unreadedCountMap[chat.id] =
-                        chats.count { other -> chat.lastEnter!! < other!!.lastEnter!! }
+                    unreadedCountMap[chat.id] = chat.newMessages!!
                 })
         }
     }
@@ -189,7 +188,7 @@ class MessagesViewModel : ViewModel() {
         }
     }
 
-    fun updateMessage(lazyColumnListState: LazyListState) {
+    fun updateMessage() {
         viewModelScope.launch {
             msgDTO.value.message = message.value
             MessagesPageRequests.updateMessageRequest(
@@ -198,7 +197,6 @@ class MessagesViewModel : ViewModel() {
                 { item -> },
                 mainSnackbarHostState.value
             )
-            lazyColumnListState.scrollToItem(0)
             message.value = ""
             editingMode.value = false
         }

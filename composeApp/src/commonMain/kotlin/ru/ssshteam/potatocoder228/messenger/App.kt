@@ -15,6 +15,7 @@ import ru.ssshteam.potatocoder228.messenger.viewmodels.AppViewModel
 var datastore: DataStore? = null
 var fileChooser: FileChooser? = null
 var emojis: EmojiDataDTO? = null
+var username: String = ""
 
 @Composable
 fun App(viewModel: AppViewModel = viewModel { AppViewModel() }) {

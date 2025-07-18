@@ -8,7 +8,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,8 +18,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -41,10 +46,12 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DockedSearchBar
 import androidx.compose.material3.DropdownMenu
@@ -63,6 +70,7 @@ import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
@@ -185,7 +193,7 @@ fun MessagesPage(
                         }
                     }
                     AnimatedPane(
-                        modifier = Modifier.preferredWidth(500.dp).fillMaxWidth(),
+                        modifier = Modifier.preferredWidth(700.dp).fillMaxWidth(),
                         enterTransition = fadeIn(),
                         exitTransition = fadeOut()
                     ) {
@@ -208,13 +216,14 @@ fun MessagesPage(
                     }
                 }, extraPane = {
                     AnimatedPane(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.preferredWidth(500.dp).fillMaxWidth(),
                         enterTransition = fadeIn(),
                         exitTransition = fadeOut()
                     ) {
                         AnimatedVisibility(
                             viewModel.selectedMsg.value != null, enter = fadeIn(), exit = fadeOut()
                         ) {
+                            val lazyColumnListState = rememberLazyListState()
                             Scaffold(topBar = {
                                 TopAppBar(title = {
                                     Text(
@@ -237,76 +246,131 @@ fun MessagesPage(
                                     }
                                 })
                             }, bottomBar = {
+                                IconButton(
+                                    modifier = Modifier.background(Color.Transparent).align(
+                                        CenterVertically
+                                    ), onClick = {
+                                        println("Choose file")
+                                        val fileName: String? = fileChooser?.selectFile()
+                                        if (fileName != null) {
+                                            viewModel.message.value += fileName
+                                        }
+
+                                    }) {
+                                    Icon(
+                                        Icons.Default.AttachFile,
+                                        contentDescription = "Прикрепить документ"
+                                    )
+                                }
                                 TextField(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    value = "Введите сообщение!",
-                                    onValueChange = {},
+                                    modifier = Modifier.weight(1f).onPreviewKeyEvent {
+                                        when {
+                                            (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                                                if (viewModel.editingMode.value) {
+                                                    viewModel.updateMessage()
+                                                } else {
+                                                    viewModel.sendMessage(
+                                                        lazyColumnListState
+                                                    )
+                                                }
+                                                true
+                                            }
+
+                                            (it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                                                viewModel.message.value += "\n"
+                                                true
+                                            }
+
+                                            else -> false
+                                        }
+                                    },
+                                    value = viewModel.message.value,
+                                    onValueChange = { viewModel.message.value = it },
+                                    placeholder = { Text("Введите сообщение!") },
+                                    maxLines = 3,
                                 )
+                                IconButton(
+                                    modifier = Modifier.background(Color.Transparent).align(
+                                        CenterVertically
+                                    ), onClick = {
+                                        viewModel.emojiSelector.value =
+                                            !viewModel.emojiSelector.value
+                                    }) {
+                                    Icon(
+                                        Icons.Default.AddReaction,
+                                        contentDescription = "Меню смайликов"
+                                    )
+                                    DropdownMenu(
+                                        containerColor = Color.Transparent,
+                                        expanded = viewModel.emojiSelector.value,
+                                        tonalElevation = 0.dp,
+                                        shadowElevation = 0.dp,
+                                        onDismissRequest = {
+                                            viewModel.emojiSelector.value = false
+                                        }) {
+                                        EmojiPicker(Modifier)
+                                    }
+                                }
+                                IconButton(
+                                    modifier = Modifier.background(Color.Transparent).align(
+                                        CenterVertically
+                                    ), onClick = {
+                                        if (viewModel.editingMode.value) {
+                                            viewModel.updateMessage()
+                                        } else {
+                                            viewModel.sendMessage(
+                                                lazyColumnListState
+                                            )
+                                        }
+                                    }) {
+                                    Icon(
+                                        Icons.Default.ChatBubble, contentDescription = "Отправить"
+                                    )
+                                }
                             }) {
                                 Scaffold(
                                     modifier = Modifier.padding(it),
                                     topBar = {
                                         Column {
-                                            Card(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                shape = RoundedCornerShape(5.dp),
-                                                onClick = {}
-                                            ) {
-                                                if (viewModel.chatBoxModifier.value == null) {
-                                                    Modifier.padding(2.dp).fillMaxSize().also {
-                                                        viewModel.chatBoxModifier.value = it
-                                                    }
-                                                }
-                                                Box(
-                                                    modifier = Modifier.fillMaxWidth()
+                                            val msgMenuExpanded =
+                                                remember { mutableStateOf(false) }
+                                            Box(Modifier.fillMaxWidth().padding(5.dp, 5.dp)) {
+                                                ElevatedCard(
+                                                    modifier = Modifier.widthIn(200.dp, 600.dp),
+                                                    onClick = {
+                                                        scope.launch {
+                                                            msgMenuExpanded.value = true
+                                                        }
+                                                    },
+                                                    colors =
+                                                        if (viewModel.selectedMsg.value?.sender == username) {
+                                                            CardColors(
+                                                                MaterialTheme.colorScheme.secondaryContainer,
+                                                                MaterialTheme.colorScheme.onSecondaryContainer,
+                                                                MaterialTheme.colorScheme.surfaceContainerLowest,
+                                                                MaterialTheme.colorScheme.onSurface
+                                                            )
+                                                        } else {
+                                                            CardColors(
+                                                                MaterialTheme.colorScheme.surfaceContainer,
+                                                                MaterialTheme.colorScheme.onSurface,
+                                                                MaterialTheme.colorScheme.surfaceContainerLowest,
+                                                                MaterialTheme.colorScheme.onSurface
+                                                            )
+                                                        },
+                                                    shape = RoundedCornerShape(10.dp),
                                                 ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Person,
-                                                        contentDescription = "Person",
-                                                        modifier = Modifier.size(
-                                                            60.dp
-                                                        ).clip(CircleShape).align(TopStart)
-                                                    )
-
-                                                    if (viewModel.msgSenderTextModifier.value == null) {
-                                                        Modifier.align(TopStart)
-                                                            .offset { IntOffset(60, 0) }
-                                                            .also {
-                                                                viewModel.msgSenderTextModifier.value =
-                                                                    it
-                                                            }
-                                                    }
-                                                    msgSenderText(viewModel.selectedMsg.value?.sender)
-
-                                                    if (viewModel.msgTextModifier.value == null) {
-                                                        Modifier.align(
-                                                            CenterStart
-                                                        ).offset { IntOffset(60, 0) }.padding(
-                                                            0.dp, 25.dp, 100.dp, 0.dp
-                                                        ).also {
-                                                            viewModel.msgTextModifier.value = it
+                                                    if (viewModel.msgBoxModifier.value == null) {
+                                                        Modifier.widthIn(200.dp, 600.dp)
+                                                            .padding(2.dp).also {
+                                                            viewModel.msgBoxModifier.value = it
                                                         }
                                                     }
+                                                    msgBox(
+                                                        viewModel.selectedMsg.value,
+                                                        msgMenuExpanded.value,
+                                                        { value -> msgMenuExpanded.value = value })
 
-                                                    msgText(viewModel.selectedMsg.value?.message)
-
-                                                    if (viewModel.msgSettingsModifier.value == null) {
-                                                        Modifier.align(
-                                                            CenterEnd
-                                                        ).padding(6.dp).also {
-                                                            viewModel.msgSettingsModifier.value = it
-                                                        }
-                                                    }
-
-                                                    if (viewModel.msgSettingsDropdownMenuModifier.value == null) {
-                                                        Modifier.align(
-                                                            TopEnd
-                                                        ).padding(6.dp).also {
-                                                            viewModel.msgSettingsDropdownMenuModifier.value =
-                                                                it
-                                                        }
-                                                    }
-                                                    msgSettings(message = null)
                                                 }
                                             }
                                             HorizontalDivider(
@@ -319,8 +383,13 @@ fun MessagesPage(
                                             )
                                         }
                                     }) {
-                                    LazyColumn(modifier = Modifier.padding(it).fillMaxHeight()) {
+                                    LazyColumn(
+                                        modifier = Modifier.padding(it).fillMaxHeight(),
+                                        reverseLayout = true,
+                                        state = lazyColumnListState
+                                    ) {
                                         item {
+                                            val msgMenuExpanded = remember { mutableStateOf(false) }
                                             ElevatedCard(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 shape = RoundedCornerShape(5.dp),
@@ -380,11 +449,15 @@ fun MessagesPage(
                                                                 it
                                                         }
                                                     }
-                                                    msgSettings(message = null)
+                                                    msgSettingsDropdownMenu(
+                                                        message = null,
+                                                        msgMenuExpanded.value,
+                                                        { value -> msgMenuExpanded.value = value })
                                                 }
                                             }
                                         }
                                         item {
+                                            val msgMenuExpanded = remember { mutableStateOf(false) }
                                             ElevatedCard(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 shape = RoundedCornerShape(5.dp),
@@ -444,7 +517,10 @@ fun MessagesPage(
                                                                 it
                                                         }
                                                     }
-                                                    msgSettings(message = null)
+                                                    msgSettingsDropdownMenu(
+                                                        null,
+                                                        msgMenuExpanded.value,
+                                                        { value -> msgMenuExpanded.value = value })
                                                 }
                                             }
                                         }
@@ -580,7 +656,7 @@ fun chatsAddNewChatDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun chatsSearchBarInput(
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
@@ -669,18 +745,18 @@ fun chatBox(
             modifier = Modifier.padding(2.dp).fillMaxSize()
         ) {
             Icon(
-                imageVector = Icons.Rounded.Person,
+                imageVector = Icons.Default.Person,
                 contentDescription = "Person",
-                modifier = Modifier.size(
-                    45.dp
-                ).clip(CircleShape).align(TopStart)
+                modifier = Modifier.requiredSize(55.dp).padding(5.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .align(TopStart)
             )
 
             Text(
                 modifier = Modifier.align(TopStart).padding(0.dp, 5.dp, 150.dp, 0.dp)
                     .offset(60.dp, 0.dp),
                 text = chat?.name ?: "Unknown",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 overflow = TextOverflow.Ellipsis,
                 maxLines = 1
             )
@@ -736,8 +812,8 @@ fun msgsCounterBadge(
     viewModel.chatBadgeCounterModifier.value?.let {
         Badge(
             modifier = it,
-            containerColor = Color.Red,
-            contentColor = Color.White
+            containerColor = MaterialTheme.colorScheme.tertiary,
+            contentColor = MaterialTheme.colorScheme.onTertiary
         ) {
             Text(count)
         }
@@ -910,7 +986,7 @@ fun msgsScaffoldBottomContent(
                 when {
                     (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
                         if (viewModel.editingMode.value) {
-                            viewModel.updateMessage(lazyColumnListState)
+                            viewModel.updateMessage()
                         } else {
                             viewModel.sendMessage(
                                 lazyColumnListState
@@ -957,7 +1033,7 @@ fun msgsScaffoldBottomContent(
                 CenterVertically
             ), onClick = {
                 if (viewModel.editingMode.value) {
-                    viewModel.updateMessage(lazyColumnListState)
+                    viewModel.updateMessage()
                 } else {
                     viewModel.sendMessage(
                         lazyColumnListState
@@ -1035,24 +1111,86 @@ fun msgsColumn(
         ) {
             items(
                 items = viewModel.messages, key = { message -> message?.id ?: 0 }) { item ->
+                val msgMenuExpanded = remember { mutableStateOf(false) }
                 ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.widthIn(200.dp, 600.dp).padding(5.dp, 5.dp),
                     onClick = {
                         scope.launch {
-                            viewModel.selectedMsg.value = item
-                            scaffoldNavigator.navigateTo(
-                                ListDetailPaneScaffoldRole.Extra
-                            )
+                            msgMenuExpanded.value = true
                         }
                     },
-                    shape = RoundedCornerShape(5.dp),
+                    colors =
+                        if (item?.sender == username) {
+                            CardColors(
+                                MaterialTheme.colorScheme.secondaryContainer,
+                                MaterialTheme.colorScheme.onSecondaryContainer,
+                                MaterialTheme.colorScheme.surfaceContainerLowest,
+                                MaterialTheme.colorScheme.onSurface
+                            )
+                        } else {
+                            CardColors(
+                                MaterialTheme.colorScheme.surfaceContainer,
+                                MaterialTheme.colorScheme.onSurface,
+                                MaterialTheme.colorScheme.surfaceContainerLowest,
+                                MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                    shape = RoundedCornerShape(10.dp),
                 ) {
                     if (viewModel.msgBoxModifier.value == null) {
-                        Modifier.padding(2.dp).fillMaxSize().also {
+                        Modifier.widthIn(200.dp, 600.dp).padding(2.dp).also {
                             viewModel.msgBoxModifier.value = it
                         }
                     }
-                    msgBox(item)
+                    msgBox(
+                        item,
+                        msgMenuExpanded.value,
+                        { value -> msgMenuExpanded.value = value })
+                    HorizontalDivider(
+                        modifier = Modifier.widthIn(200.dp, 600.dp)
+                            .width((item!!.message.length * 14).dp)
+                    )
+                    TextButton(
+                        modifier = Modifier.widthIn(200.dp, 600.dp)
+                            .width((item.message.length * 14).dp)
+                            .requiredHeight(40.dp),
+                        onClick = {
+                            scope.launch {
+                                viewModel.selectedMsg.value = item
+                                scaffoldNavigator.navigateTo(
+                                    ListDetailPaneScaffoldRole.Extra
+                                )
+                            }
+                        },
+                        contentPadding = PaddingValues(0.dp, 0.dp),
+                        colors = ButtonColors(
+                            if (item.sender == username) {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainer
+                            },
+                            if (item.sender == username) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            MaterialTheme.colorScheme.secondaryContainer,
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        shape = RoundedCornerShape(0.dp)
+                    ) {
+                        Row(
+                            Modifier.widthIn(200.dp, 600.dp).width((item.message.length * 14).dp),
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            Icon(
+                                Icons.Rounded.Forum,
+                                contentDescription = "Обсуждение",
+                                Modifier.padding(15.dp, 0.dp)
+                            )
+                            Text("Обсуждение")
+                        }
+                    }
                 }
             }
         }
@@ -1062,31 +1200,32 @@ fun msgsColumn(
 @OptIn(ExperimentalTime::class)
 @Composable
 fun msgBox(
-    message: MessageDTO?, viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
+    message: MessageDTO?, msgMenuExpanded: Boolean,
+    onMenuExpand: (Boolean) -> Unit,
+    viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     viewModel.msgBoxModifier.value?.let {
-        Box(
+        BoxWithConstraints(
             modifier = it
         ) {
             Icon(
                 imageVector = Icons.Default.Person,
                 contentDescription = "Person",
                 modifier = Modifier.size(
-                    60.dp
-                ).clip(CircleShape).align(TopStart)
+                    45.dp
+                ).padding(5.dp, 3.dp, 0.dp, 10.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .align(TopStart)
             )
 
             if (viewModel.msgSenderTextModifier.value == null) {
-                Modifier.align(TopStart).offset(60.dp, 0.dp).also {
+                Modifier.align(TopStart).offset(50.dp, 0.dp).also {
                     viewModel.msgSenderTextModifier.value = it
                 }
             }
-
-            message?.sendAt?.toInstant(UtcOffset.ZERO)
-                ?.minus(message.sendAt.toInstant(TimeZone.currentSystemDefault()))
             msgSenderText(message?.sender)
             Text(
-                modifier = Modifier.align(TopStart).offset(130.dp, 5.dp).width(80.dp),
+                modifier = Modifier.align(TopStart).offset(120.dp, 3.dp).width(80.dp),
                 text = DateTimeComponents.Format {
                     hour(); char(':'); minute()
                     char(' ')
@@ -1104,23 +1243,24 @@ fun msgBox(
                         )
                     )
                 },
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelMedium,
                 overflow = TextOverflow.Ellipsis,
                 maxLines = 1
             )
 
             Text(
-                modifier = Modifier.align(TopStart).offset(200.dp, 5.dp),
+                modifier = Modifier.align(TopStart).offset(190.dp, 3.dp),
                 text = if (message?.edited == null) "" else "(edited)",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelMedium,
                 overflow = TextOverflow.Ellipsis,
-                maxLines = 1
+                maxLines = 1,
+                color = MaterialTheme.colorScheme.tertiary
             )
 
             if (viewModel.msgTextModifier.value == null) {
                 Modifier.align(
                     CenterStart
-                ).offset(60.dp, 0.dp).padding(
+                ).offset(50.dp, 0.dp).padding(
                     0.dp, 25.dp, 100.dp, 0.dp
                 ).also {
                     viewModel.msgTextModifier.value = it
@@ -1129,14 +1269,6 @@ fun msgBox(
 
             msgText(message?.message)
 
-            if (viewModel.msgSettingsModifier.value == null) {
-                Modifier.align(
-                    CenterEnd
-                ).padding(6.dp).also {
-                    viewModel.msgSettingsModifier.value = it
-                }
-            }
-
             if (viewModel.msgSettingsDropdownMenuModifier.value == null) {
                 Modifier.align(
                     TopEnd
@@ -1144,7 +1276,10 @@ fun msgBox(
                     viewModel.msgSettingsDropdownMenuModifier.value = it
                 }
             }
-            msgSettings(message)
+            msgSettingsDropdownMenu(
+                message,
+                msgMenuExpanded, onMenuExpand
+            )
         }
     }
 }
@@ -1157,9 +1292,10 @@ fun msgSenderText(
         Text(
             modifier = it,
             text = sender ?: "Unknown",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.bodyLarge,
             overflow = TextOverflow.Ellipsis,
-            maxLines = 1
+            maxLines = 1,
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }
@@ -1173,29 +1309,8 @@ fun msgText(
             modifier = it,
             text = message ?: "",
             style = MaterialTheme.typography.bodyMedium,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Ellipsis
         )
-    }
-}
-
-@Composable
-fun msgSettings(
-    message: MessageDTO?,
-    viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
-) {
-    viewModel.msgSettingsModifier.value?.let {
-        val msgMenuExpanded = remember { mutableStateOf(false) }
-        IconButton(
-            modifier = it, onClick = {
-                msgMenuExpanded.value = !msgMenuExpanded.value
-            }) {
-            Icon(
-                Icons.Default.MoreVert, contentDescription = "Настройки"
-            )
-            msgSettingsDropdownMenu(
-                message,
-                msgMenuExpanded.value, { value -> msgMenuExpanded.value = value })
-        }
     }
 }
 
@@ -1221,7 +1336,8 @@ fun msgSettingsDropdownMenu(
                     viewModel.msgDTO.value.repliedToId = message.repliedToId
                     viewModel.msgDTO.value.threadParentMsgId = message.threadParentMsgId
                     viewModel.message.value = message.message
-                    viewModel.msgDTO.value.edited = Clock.System.now().toLocalDateTime(TimeZone.UTC)
+                    viewModel.msgDTO.value.edited =
+                        Clock.System.now().toLocalDateTime(TimeZone.UTC)
                     viewModel.editingMode.value = true
                 }
             }, text = { Text("Редактировать") })

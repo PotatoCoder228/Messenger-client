@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material3.Button
+import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,7 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
@@ -86,13 +86,6 @@ fun authTopBar(
 ) {
     viewModel.topBarModifier.value?.let {
         TopAppBar(
-            colors = TopAppBarColors(
-                MaterialTheme.colorScheme.surfaceContainerLowest,
-                MaterialTheme.colorScheme.surfaceContainerLowest,
-                MaterialTheme.colorScheme.onSurface,
-                MaterialTheme.colorScheme.onSurface,
-                MaterialTheme.colorScheme.onSurface
-            ),
             title = {
                 Row(
                     modifier = it, horizontalArrangement = Arrangement.Center
@@ -134,6 +127,7 @@ fun fieldsTitle(
             text = "Авторизация",
             style = MaterialTheme.typography.titleLarge,
             modifier = it,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -146,7 +140,13 @@ fun fieldsCard(
         ElevatedCard(
             elevation = CardDefaults.cardElevation(
                 defaultElevation = 6.dp
-            ), modifier = it
+            ), modifier = it,
+            colors = CardColors(
+                MaterialTheme.colorScheme.surfaceContainer,
+                MaterialTheme.colorScheme.onSurface,
+                MaterialTheme.colorScheme.surfaceContainerLowest,
+                MaterialTheme.colorScheme.onSurface
+            )
         ) {
             if (viewModel.loginFieldModifier.value == null) {
                 Modifier.align(CenterHorizontally).padding(10.dp)

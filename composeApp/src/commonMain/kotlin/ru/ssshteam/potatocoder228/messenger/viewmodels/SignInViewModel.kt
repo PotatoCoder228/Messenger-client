@@ -15,6 +15,7 @@ import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import ru.ssshteam.potatocoder228.messenger.dto.UserAuthDTO
 import ru.ssshteam.potatocoder228.messenger.requests.SignInRequests.Companion.signInRequest
+import ru.ssshteam.potatocoder228.messenger.username
 
 class SignInViewModel : ViewModel() {
     var loginInput = mutableStateOf("")
@@ -46,6 +47,7 @@ class SignInViewModel : ViewModel() {
             signInRequest(
                 UserAuthDTO(loginInput.value, passwordInput.value), navController, snackbarHostState
             )
+            username = loginInput.value
         }
     }
 
