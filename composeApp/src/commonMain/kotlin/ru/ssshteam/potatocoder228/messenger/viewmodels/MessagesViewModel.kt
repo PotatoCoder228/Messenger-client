@@ -7,7 +7,6 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
@@ -18,6 +17,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.hildan.krossbow.stomp.StompSession
 import org.hildan.krossbow.stomp.conversions.kxserialization.json.withJsonConversions
 import org.hildan.krossbow.stomp.headers.StompSubscribeHeaders
@@ -38,6 +39,7 @@ import ru.ssshteam.potatocoder228.messenger.wsHost
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class MessagesViewModel : ViewModel() {
     @OptIn(ExperimentalAtomicApi::class)
@@ -46,6 +48,7 @@ class MessagesViewModel : ViewModel() {
     private var chatsCurrentSession: StompSession? = null
     var expanded = mutableStateOf(false)
     var editingMode = mutableStateOf(false)
+    var threadEditingMode = mutableStateOf(false)
     val snackbarChatsHostState = SnackbarHostState()
     var addChatDialogExpanded = mutableStateOf(false)
     val chatNameInput = mutableStateOf("")
@@ -66,14 +69,14 @@ class MessagesViewModel : ViewModel() {
     private var notificationsCurrentSession: StompSession? = null
     val chats = mutableStateListOf<ChatDTO?>()
 
-    val emojiSelector = mutableStateOf(false)
     val navRailVisible = mutableStateOf(false)
 
     val mainSnackbarHostState = mutableStateOf(SnackbarHostState())
     val messages = mutableStateListOf<MessageDTO?>()
+    val threadMessages = mutableStateListOf<MessageDTO?>()
 
-    val unreadedCountMap = mutableStateMapOf<String, Int>()
     val message = mutableStateOf("")
+    val threadMessage = mutableStateOf("")
     var selectedChat = mutableStateOf<ChatDTO?>(null)
     var selectedMsg = mutableStateOf<MessageDTO?>(null)
     var detailPaneState = mutableStateOf(UiState.Loading)
@@ -95,16 +98,20 @@ class MessagesViewModel : ViewModel() {
     val chatBoxModifier: MutableState<Modifier?> = mutableStateOf(null)
     val chatNameTextModifier: MutableState<Modifier?> = mutableStateOf(null)
     val chatBadgeCounterModifier: MutableState<Modifier?> = mutableStateOf(null)
+    val threadBadgeCounterModifier: MutableState<Modifier?> = mutableStateOf(null)
 
     @OptIn(ExperimentalUuidApi::class)
     val msgDTO: MutableState<MessageDTO> = mutableStateOf(MessageDTO())
+
+    @OptIn(ExperimentalUuidApi::class)
+    val threadMsgDTO: MutableState<MessageDTO> = mutableStateOf(MessageDTO())
 
     fun loadChats() {
         viewModelScope.launch {
             getChatsRequest(
                 snackbarHostState = mainSnackbarHostState.value, onChatsChange = { chat ->
+                    chat.unreadedMessages = chat.newMessages!!
                     chats.add(chat)
-                    unreadedCountMap[chat.id] = chat.newMessages!!
                 })
         }
     }
@@ -114,14 +121,22 @@ class MessagesViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             if (chatDTO != null) {
-                selectedChat.value = chatDTO
-                unreadedCountMap[chatDTO.id] = 0
+                val first = chats.withIndex().firstOrNull {
+                    (chatDTO.id) == (it.value?.id)
+                }
+                val chatCopy = chatDTO.copy(unreadedMessages = 0)
+                selectedChat.value = chatCopy
+                if (first != null) {
+                    chats[first.index] = chatCopy
+                }
+
             }
             detailPaneState.value = UiState.Loading
             messages.clear()
             MessagesPageRequests.getChatMessagesRequest(
                 chatDTO, mainSnackbarHostState.value
             ) { message ->
+                message.unreadMessages = message.newThreadMessages
                 messages.add(
                     message
                 )
@@ -166,6 +181,7 @@ class MessagesViewModel : ViewModel() {
         viewModelScope.launch {
             msgDTO.value = MessageDTO()
             msgDTO.value.message = message.value
+            msgDTO.value.messageType = "REGULAR"
             MessagesPageRequests.sendMessageRequest(
                 selectedChat.value,
                 msgDTO.value,
@@ -174,6 +190,49 @@ class MessagesViewModel : ViewModel() {
             )
             lazyColumnListState.scrollToItem(0)
             message.value = ""
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    fun sendThreadMessage(lazyColumnListState: LazyListState) {
+        viewModelScope.launch {
+            threadMsgDTO.value = MessageDTO()
+            threadMsgDTO.value.message = threadMessage.value
+            threadMsgDTO.value.messageType = "THREAD"
+            threadMsgDTO.value.threadParentMsgId = Uuid.parse(selectedMsg.value!!.id)
+            MessagesPageRequests.sendThreadMessageRequest(
+                selectedChat.value,
+                threadMsgDTO.value,
+                { item -> },
+                mainSnackbarHostState.value
+            )
+            lazyColumnListState.scrollToItem(0)
+            threadMessage.value = ""
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    fun showChatThreadMessages(
+        chatDTO: ChatDTO?
+    ) {
+        viewModelScope.launch {
+            threadMessages.clear()
+            val msgCopy = selectedMsg.value?.copy(unreadMessages = 0)
+            val first = messages.withIndex().firstOrNull {
+                (selectedMsg.value?.id) == (it.value?.id)
+            }
+
+            selectedMsg.value = msgCopy
+            if (first != null) {
+                messages[first.index] = msgCopy
+            }
+            MessagesPageRequests.getThreadMessagesRequest(
+                chatDTO, selectedMsg.value, mainSnackbarHostState.value
+            ) { message ->
+                threadMessages.add(
+                    message
+                )
+            }
         }
     }
 
@@ -198,6 +257,20 @@ class MessagesViewModel : ViewModel() {
                 mainSnackbarHostState.value
             )
             message.value = ""
+            editingMode.value = false
+        }
+    }
+
+    fun updateThreadMessage() {
+        viewModelScope.launch {
+            msgDTO.value.message = threadMessage.value
+            MessagesPageRequests.updateMessageRequest(
+                selectedChat.value,
+                msgDTO.value,
+                { item -> },
+                mainSnackbarHostState.value
+            )
+            threadMessage.value = ""
             editingMode.value = false
         }
     }
@@ -298,36 +371,71 @@ class MessagesViewModel : ViewModel() {
                     )
                     while (sessionId == messagesSessionIdentificator.load()) {
                         subscription.collect { stompMessage ->
-                            val first = messages.withIndex().firstOrNull {
-                                (stompMessage.data?.id ?: 0) == (it.value?.id ?: 0)
-                            }
                             if (sessionId != messagesSessionIdentificator.load()) {
                                 return@collect
                             }
                             when (stompMessage.operation) {
                                 "ADD" -> {
-                                    val index = lazyColumnListState.firstVisibleItemIndex
-                                    messages.add(
-                                        0, stompMessage.data
-                                    )
-                                    if (index == 0) {
-                                        lazyColumnListState.scrollToItem(
-                                            0
+                                    if (stompMessage.data?.messageType == "REGULAR") {
+                                        val index = lazyColumnListState.firstVisibleItemIndex
+                                        messages.add(
+                                            0, stompMessage.data
                                         )
+                                        if (index == 0) {
+                                            lazyColumnListState.scrollToItem(
+                                                0
+                                            )
+                                        }
+                                    } else if (stompMessage.data?.messageType == "THREAD") {
+                                        threadMessages.add(
+                                            stompMessage.data
+                                        )
+//                                        if (index == 0) {
+//                                            lazyColumnListState.scrollToItem(
+//                                                0
+//                                            )
+//                                        }
                                     }
                                 }
 
                                 "DELETE" -> {
-                                    if (first != null) {
-                                        messages.removeAt(
-                                            first.index
-                                        )
+                                    if (stompMessage.data?.messageType == "REGULAR") {
+                                        val first = messages.withIndex().firstOrNull {
+                                            (stompMessage.data?.id ?: 0) == (it.value?.id ?: 0)
+                                        }
+                                        if (first != null) {
+                                            messages.removeAt(
+                                                first.index
+                                            )
+                                        }
+                                    } else if (stompMessage.data?.messageType == "THREAD") {
+                                        val first = threadMessages.withIndex().firstOrNull {
+                                            (stompMessage.data?.id ?: 0) == (it.value?.id ?: 0)
+                                        }
+                                        if (first != null) {
+                                            threadMessages.removeAt(
+                                                first.index
+                                            )
+                                        }
                                     }
                                 }
 
                                 "UPDATE" -> {
-                                    if (first != null) {
-                                        messages[first.index] = stompMessage.data
+                                    if (stompMessage.data?.messageType == "REGULAR") {
+                                        val first = messages.withIndex().firstOrNull {
+                                            (stompMessage.data?.id ?: 0) == (it.value?.id ?: 0)
+                                        }
+                                        if (first != null) {
+                                            messages[first.index] = stompMessage.data
+                                        }
+                                    } else if (stompMessage.data?.messageType == "THREAD") {
+                                        val first = threadMessages.withIndex().firstOrNull {
+                                            (stompMessage.data?.id ?: 0) == (it.value?.id ?: 0)
+                                        }
+                                        println("${first?.index}")
+                                        if (first != null) {
+                                            threadMessages[first.index] = stompMessage.data
+                                        }
                                     }
                                 }
                             }
@@ -343,7 +451,7 @@ class MessagesViewModel : ViewModel() {
         }
     }
 
-    @OptIn(ExperimentalAtomicApi::class)
+    @OptIn(ExperimentalAtomicApi::class, ExperimentalUuidApi::class)
     fun subscribeToNotifications() {
         viewModelScope.launch {
             val identificator = notificationsSessionIdentificator.addAndFetch(1)
@@ -369,19 +477,38 @@ class MessagesViewModel : ViewModel() {
                             if (identificator != notificationsSessionIdentificator.load()) {
                                 return@collect
                             }
-                            val first = chats.withIndex().firstOrNull {
-                                (stompMessage.chatId) == (it.value?.id)
-                            }
                             when (stompMessage.type) {
                                 "NEW_MESSAGE" -> {
                                     try {
+                                        val first = chats.withIndex().firstOrNull {
+                                            (stompMessage.chatId) == (it.value?.id)
+                                        }
                                         if (first != null && selectedChat.value?.id != first.value?.id) {
-                                            if (unreadedCountMap[stompMessage.chatId] != 0 && unreadedCountMap[stompMessage.chatId] != null) {
-                                                unreadedCountMap[stompMessage.chatId] =
-                                                    unreadedCountMap[stompMessage.chatId]!! + 1
-                                            } else {
-                                                unreadedCountMap[stompMessage.chatId] = 1
-                                            }
+                                            chats[first.index] =
+                                                chats[first.index]?.copy(unreadedMessages = first.value?.unreadedMessages!! + 1)
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+
+                                "NEW_THREAD_MESSAGE" -> {
+                                    try {
+                                        val jsonElement = Json.parseToJsonElement(stompMessage.data)
+                                        val first = messages.withIndex().firstOrNull {
+                                            val id = jsonElement.jsonObject["threadId"].toString()
+                                            (id.subSequence(1, id.length - 1)) == (it.value?.id)
+                                        }
+                                        if (first != null && selectedMsg.value?.id != first.value?.id) {
+                                            messages[first.index] =
+                                                messages[first.index]?.copy(unreadMessages = first.value?.unreadMessages!! + 1)
+                                        } else if (first != null && selectedMsg.value != null && selectedMsg.value?.id == first.value?.id) {
+                                            MessagesPageRequests.updateLastThreadEnterRequest(
+                                                selectedChat.value,
+                                                selectedMsg.value!!,
+                                                { item -> },
+                                                mainSnackbarHostState.value
+                                            )
                                         }
                                     } catch (e: Exception) {
                                         e.printStackTrace()

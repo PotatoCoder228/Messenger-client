@@ -105,7 +105,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -187,6 +186,7 @@ fun MessagesPage(
                     if (viewModel.fromExtraToDetail.value) {
                         scope.launch {
                             viewModel.fromExtraToDetail.value = false
+                            viewModel.selectedMsg.value = null
                             scaffoldNavigator.navigateTo(
                                 ListDetailPaneScaffoldRole.Detail
                             )
@@ -233,10 +233,10 @@ fun MessagesPage(
                                     IconButton(onClick = {
                                         scope.launch {
                                             viewModel.fromExtraToDetail.value = true
+                                            viewModel.selectedMsg.value = null
                                             scaffoldNavigator.navigateTo(
                                                 ListDetailPaneScaffoldRole.List
                                             )
-                                            viewModel.selectedMsg.value = null
                                         }
                                     }) {
                                         Icon(
@@ -246,86 +246,90 @@ fun MessagesPage(
                                     }
                                 })
                             }, bottomBar = {
-                                IconButton(
-                                    modifier = Modifier.background(Color.Transparent).align(
-                                        CenterVertically
-                                    ), onClick = {
-                                        println("Choose file")
-                                        val fileName: String? = fileChooser?.selectFile()
-                                        if (fileName != null) {
-                                            viewModel.message.value += fileName
-                                        }
-
-                                    }) {
-                                    Icon(
-                                        Icons.Default.AttachFile,
-                                        contentDescription = "Прикрепить документ"
-                                    )
-                                }
-                                TextField(
-                                    modifier = Modifier.weight(1f).onPreviewKeyEvent {
-                                        when {
-                                            (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
-                                                if (viewModel.editingMode.value) {
-                                                    viewModel.updateMessage()
-                                                } else {
-                                                    viewModel.sendMessage(
-                                                        lazyColumnListState
-                                                    )
-                                                }
-                                                true
+                                Row {
+                                    IconButton(
+                                        modifier = Modifier.background(Color.Transparent).align(
+                                            CenterVertically
+                                        ), onClick = {
+                                            println("Choose file")
+                                            val fileName: String? = fileChooser?.selectFile()
+                                            if (fileName != null) {
+                                                viewModel.threadMessage.value += fileName
                                             }
 
-                                            (it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
-                                                viewModel.message.value += "\n"
-                                                true
-                                            }
-
-                                            else -> false
-                                        }
-                                    },
-                                    value = viewModel.message.value,
-                                    onValueChange = { viewModel.message.value = it },
-                                    placeholder = { Text("Введите сообщение!") },
-                                    maxLines = 3,
-                                )
-                                IconButton(
-                                    modifier = Modifier.background(Color.Transparent).align(
-                                        CenterVertically
-                                    ), onClick = {
-                                        viewModel.emojiSelector.value =
-                                            !viewModel.emojiSelector.value
-                                    }) {
-                                    Icon(
-                                        Icons.Default.AddReaction,
-                                        contentDescription = "Меню смайликов"
-                                    )
-                                    DropdownMenu(
-                                        containerColor = Color.Transparent,
-                                        expanded = viewModel.emojiSelector.value,
-                                        tonalElevation = 0.dp,
-                                        shadowElevation = 0.dp,
-                                        onDismissRequest = {
-                                            viewModel.emojiSelector.value = false
                                         }) {
-                                        EmojiPicker(Modifier)
+                                        Icon(
+                                            Icons.Default.AttachFile,
+                                            contentDescription = "Прикрепить документ"
+                                        )
                                     }
-                                }
-                                IconButton(
-                                    modifier = Modifier.background(Color.Transparent).align(
-                                        CenterVertically
-                                    ), onClick = {
-                                        if (viewModel.editingMode.value) {
-                                            viewModel.updateMessage()
-                                        } else {
-                                            viewModel.sendMessage(
-                                                lazyColumnListState
-                                            )
-                                        }
-                                    }) {
-                                    Icon(
-                                        Icons.Default.ChatBubble, contentDescription = "Отправить"
+                                    TextField(
+                                        modifier = Modifier.weight(1f).onPreviewKeyEvent {
+                                            when {
+                                                (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                                                    if (viewModel.threadEditingMode.value) {
+                                                        viewModel.updateThreadMessage()
+                                                    } else {
+                                                        viewModel.sendThreadMessage(
+                                                            lazyColumnListState
+                                                        )
+                                                    }
+                                                    true
+                                                }
+
+                                                (it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                                                    viewModel.threadMessage.value += "\n"
+                                                    true
+                                                }
+
+                                                else -> false
+                                            }
+                                        },
+                                        value = viewModel.threadMessage.value,
+                                        onValueChange = { viewModel.threadMessage.value = it },
+                                        placeholder = { Text("Введите сообщение!") },
+                                        maxLines = 3,
                                     )
+                                    val emojiSelector = mutableStateOf(false)
+                                    IconButton(
+                                        modifier = Modifier.background(Color.Transparent).align(
+                                            CenterVertically
+                                        ), onClick = {
+                                            emojiSelector.value =
+                                                !emojiSelector.value
+                                        }) {
+                                        Icon(
+                                            Icons.Default.AddReaction,
+                                            contentDescription = "Меню смайликов"
+                                        )
+                                        DropdownMenu(
+                                            containerColor = Color.Transparent,
+                                            expanded = emojiSelector.value,
+                                            tonalElevation = 0.dp,
+                                            shadowElevation = 0.dp,
+                                            onDismissRequest = {
+                                                emojiSelector.value = false
+                                            }) {
+                                            EmojiPicker(Modifier)
+                                        }
+                                    }
+                                    IconButton(
+                                        modifier = Modifier.background(Color.Transparent).align(
+                                            CenterVertically
+                                        ), onClick = {
+                                            if (viewModel.threadEditingMode.value) {
+                                                viewModel.updateThreadMessage()
+                                            } else {
+                                                viewModel.sendThreadMessage(
+                                                    lazyColumnListState
+                                                )
+                                            }
+                                        }) {
+                                        Icon(
+                                            Icons.Default.ChatBubble,
+                                            contentDescription = "Отправить"
+                                        )
+                                    }
                                 }
                             }) {
                                 Scaffold(
@@ -363,8 +367,8 @@ fun MessagesPage(
                                                     if (viewModel.msgBoxModifier.value == null) {
                                                         Modifier.widthIn(200.dp, 600.dp)
                                                             .padding(2.dp).also {
-                                                            viewModel.msgBoxModifier.value = it
-                                                        }
+                                                                viewModel.msgBoxModifier.value = it
+                                                            }
                                                     }
                                                     msgBox(
                                                         viewModel.selectedMsg.value,
@@ -385,143 +389,50 @@ fun MessagesPage(
                                     }) {
                                     LazyColumn(
                                         modifier = Modifier.padding(it).fillMaxHeight(),
-                                        reverseLayout = true,
                                         state = lazyColumnListState
                                     ) {
-                                        item {
-                                            val msgMenuExpanded = remember { mutableStateOf(false) }
+                                        items(
+                                            items = viewModel.threadMessages, key = { message ->
+                                                message?.id ?: 0
+                                            }) { item ->
+                                            val msgMenuExpanded =
+                                                remember { mutableStateOf(false) }
                                             ElevatedCard(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                shape = RoundedCornerShape(5.dp),
-                                                onClick = {}
+                                                modifier = Modifier.widthIn(200.dp, 600.dp)
+                                                    .padding(5.dp, 5.dp),
+                                                onClick = {
+                                                    scope.launch {
+                                                        msgMenuExpanded.value = true
+                                                    }
+                                                },
+                                                colors =
+                                                    if (item?.sender == username) {
+                                                        CardColors(
+                                                            MaterialTheme.colorScheme.secondaryContainer,
+                                                            MaterialTheme.colorScheme.onSecondaryContainer,
+                                                            MaterialTheme.colorScheme.surfaceContainerLowest,
+                                                            MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    } else {
+                                                        CardColors(
+                                                            MaterialTheme.colorScheme.surfaceContainer,
+                                                            MaterialTheme.colorScheme.onSurface,
+                                                            MaterialTheme.colorScheme.surfaceContainerLowest,
+                                                            MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    },
+                                                shape = RoundedCornerShape(10.dp),
                                             ) {
-                                                if (viewModel.chatBoxModifier.value == null) {
-                                                    Modifier.padding(2.dp).fillMaxSize().also {
-                                                        viewModel.chatBoxModifier.value = it
-                                                    }
+                                                if (viewModel.msgBoxModifier.value == null) {
+                                                    Modifier.widthIn(200.dp, 600.dp)
+                                                        .padding(2.dp).also {
+                                                            viewModel.msgBoxModifier.value = it
+                                                        }
                                                 }
-                                                Box(
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Person,
-                                                        contentDescription = "Person",
-                                                        modifier = Modifier.size(
-                                                            60.dp
-                                                        ).clip(CircleShape).align(TopStart)
-                                                    )
-
-                                                    if (viewModel.msgSenderTextModifier.value == null) {
-                                                        Modifier.align(TopStart)
-                                                            .offset { IntOffset(60, 0) }
-                                                            .also {
-                                                                viewModel.msgSenderTextModifier.value =
-                                                                    it
-                                                            }
-                                                    }
-                                                    msgSenderText(viewModel.selectedMsg.value?.sender)
-
-                                                    if (viewModel.msgTextModifier.value == null) {
-                                                        Modifier.align(
-                                                            CenterStart
-                                                        ).offset { IntOffset(60, 0) }.padding(
-                                                            0.dp, 25.dp, 100.dp, 0.dp
-                                                        ).also {
-                                                            viewModel.msgTextModifier.value = it
-                                                        }
-                                                    }
-
-                                                    msgText("Сообщение в макете для теста")
-
-                                                    if (viewModel.msgSettingsModifier.value == null) {
-                                                        Modifier.align(
-                                                            CenterEnd
-                                                        ).padding(6.dp).also {
-                                                            viewModel.msgSettingsModifier.value = it
-                                                        }
-                                                    }
-
-                                                    if (viewModel.msgSettingsDropdownMenuModifier.value == null) {
-                                                        Modifier.align(
-                                                            TopEnd
-                                                        ).padding(6.dp).also {
-                                                            viewModel.msgSettingsDropdownMenuModifier.value =
-                                                                it
-                                                        }
-                                                    }
-                                                    msgSettingsDropdownMenu(
-                                                        message = null,
-                                                        msgMenuExpanded.value,
-                                                        { value -> msgMenuExpanded.value = value })
-                                                }
-                                            }
-                                        }
-                                        item {
-                                            val msgMenuExpanded = remember { mutableStateOf(false) }
-                                            ElevatedCard(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                shape = RoundedCornerShape(5.dp),
-                                                onClick = {}
-                                            ) {
-                                                if (viewModel.chatBoxModifier.value == null) {
-                                                    Modifier.padding(2.dp).fillMaxSize().also {
-                                                        viewModel.chatBoxModifier.value = it
-                                                    }
-                                                }
-                                                Box(
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Person,
-                                                        contentDescription = "Person",
-                                                        modifier = Modifier.size(
-                                                            60.dp
-                                                        ).clip(CircleShape).align(TopStart)
-                                                    )
-
-                                                    if (viewModel.msgSenderTextModifier.value == null) {
-                                                        Modifier.align(TopStart)
-                                                            .offset { IntOffset(60, 0) }
-                                                            .also {
-                                                                viewModel.msgSenderTextModifier.value =
-                                                                    it
-                                                            }
-                                                    }
-                                                    msgSenderText(viewModel.selectedMsg.value?.sender)
-
-                                                    if (viewModel.msgTextModifier.value == null) {
-                                                        Modifier.align(
-                                                            CenterStart
-                                                        ).offset { IntOffset(60, 0) }.padding(
-                                                            0.dp, 25.dp, 100.dp, 0.dp
-                                                        ).also {
-                                                            viewModel.msgTextModifier.value = it
-                                                        }
-                                                    }
-
-                                                    msgText("Сообщение в макете для теста")
-
-                                                    if (viewModel.msgSettingsModifier.value == null) {
-                                                        Modifier.align(
-                                                            CenterEnd
-                                                        ).padding(6.dp).also {
-                                                            viewModel.msgSettingsModifier.value = it
-                                                        }
-                                                    }
-
-                                                    if (viewModel.msgSettingsDropdownMenuModifier.value == null) {
-                                                        Modifier.align(
-                                                            TopEnd
-                                                        ).padding(6.dp).also {
-                                                            viewModel.msgSettingsDropdownMenuModifier.value =
-                                                                it
-                                                        }
-                                                    }
-                                                    msgSettingsDropdownMenu(
-                                                        null,
-                                                        msgMenuExpanded.value,
-                                                        { value -> msgMenuExpanded.value = value })
-                                                }
+                                                msgBox(
+                                                    item,
+                                                    msgMenuExpanded.value,
+                                                    { value -> msgMenuExpanded.value = value })
                                             }
                                         }
                                     }
@@ -776,8 +687,8 @@ fun chatBox(
                     viewModel.chatBadgeCounterModifier.value = it
                 }
             }
-            if (viewModel.unreadedCountMap[chat?.id] != null && viewModel.unreadedCountMap[chat?.id]!! > 0) {
-                msgsCounterBadge(viewModel.unreadedCountMap[chat?.id].toString())
+            if (chat?.unreadedMessages!! > 0) {
+                msgsCounterBadge(chat.unreadedMessages.toString())
             }
             var menuExpanded by remember { mutableStateOf(false) }
 
@@ -810,6 +721,22 @@ fun msgsCounterBadge(
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     viewModel.chatBadgeCounterModifier.value?.let {
+        Badge(
+            modifier = it,
+            containerColor = MaterialTheme.colorScheme.tertiary,
+            contentColor = MaterialTheme.colorScheme.onTertiary
+        ) {
+            Text(count)
+        }
+    }
+}
+
+@Composable
+fun threadMsgsCounterBadge(
+    count: String,
+    viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
+) {
+    viewModel.threadBadgeCounterModifier.value?.let {
         Badge(
             modifier = it,
             containerColor = MaterialTheme.colorScheme.tertiary,
@@ -1008,22 +935,23 @@ fun msgsScaffoldBottomContent(
             placeholder = { Text("Введите сообщение!") },
             maxLines = 3,
         )
+        val emojiSelector = mutableStateOf(false)
         IconButton(
             modifier = Modifier.background(Color.Transparent).align(
                 CenterVertically
             ), onClick = {
-                viewModel.emojiSelector.value = !viewModel.emojiSelector.value
+                emojiSelector.value = !emojiSelector.value
             }) {
             Icon(
                 Icons.Default.AddReaction, contentDescription = "Меню смайликов"
             )
             DropdownMenu(
                 containerColor = Color.Transparent,
-                expanded = viewModel.emojiSelector.value,
+                expanded = emojiSelector.value,
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
                 onDismissRequest = {
-                    viewModel.emojiSelector.value = false
+                    emojiSelector.value = false
                 }) {
                 EmojiPicker(Modifier)
             }
@@ -1157,6 +1085,7 @@ fun msgsColumn(
                         onClick = {
                             scope.launch {
                                 viewModel.selectedMsg.value = item
+                                viewModel.showChatThreadMessages(viewModel.selectedChat.value)
                                 scaffoldNavigator.navigateTo(
                                     ListDetailPaneScaffoldRole.Extra
                                 )
@@ -1189,6 +1118,16 @@ fun msgsColumn(
                                 Modifier.padding(15.dp, 0.dp)
                             )
                             Text("Обсуждение")
+
+                            if (viewModel.threadBadgeCounterModifier.value == null) {
+                                Modifier.padding(6.dp, 2.dp).also {
+                                    viewModel.threadBadgeCounterModifier.value = it
+                                }
+                            }
+
+                            if (item.unreadMessages > 0) {
+                                threadMsgsCounterBadge(item.unreadMessages.toString())
+                            }
                         }
                     }
                 }
@@ -1233,12 +1172,18 @@ fun msgBox(
                 }.format {
                     setTime(
                         message?.sendAt?.toInstant(UtcOffset.ZERO)
-                            ?.toLocalDateTime(TimeZone.currentSystemDefault())?.time!!
+                            ?.toLocalDateTime(TimeZone.currentSystemDefault())?.time
+                            ?: Clock.System.now()
+                                .toLocalDateTime(TimeZone.currentSystemDefault()).time
                     )
                     setOffset(
                         UtcOffset(
-                            hours = message.sendAt.toInstant(UtcOffset.ZERO)
-                                .minus(message.sendAt.toInstant(TimeZone.currentSystemDefault()))
+                            hours = (message?.sendAt?.toInstant(UtcOffset.ZERO)
+                                ?: Clock.System.now())
+                                .minus(
+                                    message?.sendAt?.toInstant(TimeZone.currentSystemDefault())
+                                        ?: Clock.System.now()
+                                )
                                 .toInt(DurationUnit.HOURS)
                         )
                     )
@@ -1331,14 +1276,27 @@ fun msgSettingsDropdownMenu(
             DropdownMenuItem(onClick = { }, text = { Text("Переслать") })
             DropdownMenuItem(onClick = {
                 if (message != null) {
-                    viewModel.msgDTO.value.id = message.id
-                    viewModel.msgDTO.value.sendAt = message.sendAt
-                    viewModel.msgDTO.value.repliedToId = message.repliedToId
-                    viewModel.msgDTO.value.threadParentMsgId = message.threadParentMsgId
-                    viewModel.message.value = message.message
-                    viewModel.msgDTO.value.edited =
-                        Clock.System.now().toLocalDateTime(TimeZone.UTC)
-                    viewModel.editingMode.value = true
+                    if (message.messageType == "REGULAR") {
+                        viewModel.msgDTO.value.id = message.id
+                        viewModel.msgDTO.value.sendAt = message.sendAt
+                        viewModel.msgDTO.value.repliedToId = message.repliedToId
+                        viewModel.msgDTO.value.messageType = message.messageType
+                        viewModel.msgDTO.value.threadParentMsgId = message.threadParentMsgId
+                        viewModel.msgDTO.value.edited =
+                            Clock.System.now().toLocalDateTime(TimeZone.UTC)
+                        viewModel.editingMode.value = true
+                        viewModel.message.value = message.message
+                    } else if (message.messageType == "THREAD") {
+                        viewModel.threadMsgDTO.value.id = message.id
+                        viewModel.threadMsgDTO.value.sendAt = message.sendAt
+                        viewModel.threadMsgDTO.value.repliedToId = message.repliedToId
+                        viewModel.threadMsgDTO.value.messageType = message.messageType
+                        viewModel.threadMsgDTO.value.threadParentMsgId = message.threadParentMsgId
+                        viewModel.threadMsgDTO.value.edited =
+                            Clock.System.now().toLocalDateTime(TimeZone.UTC)
+                        viewModel.threadEditingMode.value = true
+                        viewModel.threadMessage.value = message.message
+                    }
                 }
             }, text = { Text("Редактировать") })
             DropdownMenuItem(onClick = {
@@ -1346,6 +1304,7 @@ fun msgSettingsDropdownMenu(
                     viewModel.msgDTO.value.id = message.id
                     viewModel.msgDTO.value.sendAt = message.sendAt
                     viewModel.msgDTO.value.repliedToId = message.repliedToId
+                    viewModel.msgDTO.value.messageType = message.messageType
                     viewModel.msgDTO.value.threadParentMsgId = message.threadParentMsgId
                 }
                 viewModel.deleteMessage()

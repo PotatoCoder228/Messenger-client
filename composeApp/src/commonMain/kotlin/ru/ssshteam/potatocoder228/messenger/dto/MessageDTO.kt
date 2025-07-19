@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -22,5 +23,8 @@ data class MessageDTO @OptIn(ExperimentalUuidApi::class) constructor(
     var edited: LocalDateTime? = null,
     var repliedToId: Uuid = Uuid.NIL,
     var threadParentMsgId: Uuid = Uuid.NIL,
-    var messageType: String = ""
+    var messageType: String = "",
+    var newThreadMessages: Int = 0,
+    @Transient
+    var unreadMessages: Int = 0,
 )

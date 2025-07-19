@@ -19,6 +19,7 @@ import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
 import ru.ssshteam.potatocoder228.messenger.httpClient
 import ru.ssshteam.potatocoder228.messenger.httpHost
 import ru.ssshteam.potatocoder228.messenger.token
+import kotlin.uuid.ExperimentalUuidApi
 
 class MessagesPageRequests {
     companion object {
@@ -185,6 +186,30 @@ class MessagesPageRequests {
             }
         }
 
+        suspend fun updateLastThreadEnterRequest(
+            chatDTO: ChatDTO?,
+            msgDTO: MessageDTO,
+            onChatsChange: (ChatDTO) -> Unit,
+            snackbarHostState: SnackbarHostState
+        ) {
+            try {
+                val httpResponse: HttpResponse =
+                    httpClient.put("$httpHost/chat/${chatDTO?.id}/message/${msgDTO.id}/enter") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        contentType(ContentType.Application.Json)
+                    }
+                if (httpResponse.status.value in 200..299) {
+//                    onChatsChange(httpResponse.body())
+                } else {
+                    errorAction(httpResponse, snackbarHostState)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState)
+            }
+        }
+
         suspend fun deleteChatRequest(
             chatDTO: ChatDTO?,
             onChatsChange: (ChatDTO) -> Unit,
@@ -216,6 +241,56 @@ class MessagesPageRequests {
             try {
                 val httpResponse: HttpResponse =
                     httpClient.get("$httpHost/chat/${chatDTO?.id ?: 0}/messages") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        contentType(ContentType.Application.Json)
+                    }
+                if (httpResponse.status.value in 200..299) {
+                    httpResponse.body<List<MessageDTO>>().forEach(onMessagesChange)
+                } else {
+                    errorAction(httpResponse, snackbarHostState)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState)
+            }
+        }
+
+        @OptIn(ExperimentalUuidApi::class)
+        suspend fun sendThreadMessageRequest(
+            chatDTO: ChatDTO?,
+            messageDTO: MessageDTO?,
+            onChatsChange: (ChatDTO) -> Unit,
+            snackbarHostState: SnackbarHostState
+        ) {
+            try {
+                val httpResponse: HttpResponse =
+                    httpClient.post("$httpHost/chat/${chatDTO?.id}/thread/${messageDTO?.threadParentMsgId.toString()}/send") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        contentType(ContentType.Application.Json)
+                        setBody(messageDTO)
+                    }
+                if (httpResponse.status.value in 200..299) {
+//                    onChatsChange(httpResponse.body())
+                } else {
+                    errorAction(httpResponse, snackbarHostState)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState)
+            }
+        }
+
+        suspend fun getThreadMessagesRequest(
+            chatDTO: ChatDTO?,
+            messageDTO: MessageDTO?,
+            snackbarHostState: SnackbarHostState,
+            onMessagesChange: (MessageDTO) -> Unit,
+        ) {
+            try {
+                val httpResponse: HttpResponse =
+                    httpClient.get("$httpHost/chat/${chatDTO?.id ?: 0}/thread/${messageDTO?.id ?: 0}/messages") {
                         headers {
                             header("Authorization", "Bearer ${token?.value?.token}")
                         }
