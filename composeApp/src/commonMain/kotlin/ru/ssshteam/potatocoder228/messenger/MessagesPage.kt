@@ -290,7 +290,7 @@ fun MessagesPage(
                                         placeholder = { Text("Введите сообщение!") },
                                         maxLines = 3,
                                     )
-                                    val emojiSelector = mutableStateOf(false)
+                                    val emojiSelector = remember{mutableStateOf(false)}
                                     IconButton(
                                         modifier = Modifier.background(Color.Transparent).align(
                                             CenterVertically
@@ -310,7 +310,7 @@ fun MessagesPage(
                                             onDismissRequest = {
                                                 emojiSelector.value = false
                                             }) {
-                                            EmojiPicker(Modifier)
+                                            EmojiPicker(Modifier, {emoji -> viewModel.threadMessage.value+=emoji})
                                         }
                                     }
                                     IconButton(
@@ -493,7 +493,7 @@ fun ChatsPane(
 
 @Composable
 expect fun EmojiPicker(
-    modifier: Modifier, viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
+    modifier: Modifier, onEmojiSelect: (String) -> Unit
 )
 
 @Composable
@@ -935,7 +935,7 @@ fun msgsScaffoldBottomContent(
             placeholder = { Text("Введите сообщение!") },
             maxLines = 3,
         )
-        val emojiSelector = mutableStateOf(false)
+        val emojiSelector = remember{mutableStateOf(false)}
         IconButton(
             modifier = Modifier.background(Color.Transparent).align(
                 CenterVertically
@@ -953,7 +953,7 @@ fun msgsScaffoldBottomContent(
                 onDismissRequest = {
                     emojiSelector.value = false
                 }) {
-                EmojiPicker(Modifier)
+                EmojiPicker(Modifier, {emoji -> viewModel.message.value+=emoji})
             }
         }
         IconButton(

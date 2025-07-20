@@ -25,6 +25,8 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
@@ -51,7 +53,7 @@ sealed class EmojiPickerRoutes(val route: String) {
 
 @Composable
 fun EmojiGrid(
-    group: String, input: String, viewModel: MessagesViewModel
+    group: String, input: String, onEmojiSelect: (String) -> Unit
 ) {
     LazyVerticalGrid(
         modifier = Modifier.fillMaxWidth().requiredHeight(300.dp)
@@ -62,8 +64,7 @@ fun EmojiGrid(
             val filter = { emoji: Emoji -> emoji.version < 13 && emoji.group == group }
             items(items = emojis!!.emojis.filter { emoji -> filter(emoji) }) { emoji ->
                 TextButton(
-                    modifier = Modifier.size(50.dp),
-                    onClick = { viewModel.message.value += emoji.emoji }) {
+                    modifier = Modifier.size(50.dp), onClick = { onEmojiSelect(emoji.emoji) }) {
                     Text(emoji.emoji, style = MaterialTheme.typography.bodyLarge)
                 }
             }
@@ -77,7 +78,7 @@ fun EmojiGrid(
                 )
             }
             items(items = emojis!!.emojis.filter { emoji -> filter(emoji) }) { emoji ->
-                TextButton(onClick = { viewModel.message.value += emoji.emoji }) {
+                TextButton(onClick = { onEmojiSelect(emoji.emoji) }) {
                     Text(emoji.emoji, style = MaterialTheme.typography.bodyLarge)
                 }
             }
@@ -85,10 +86,9 @@ fun EmojiGrid(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 actual fun EmojiPicker(
-    modifier: Modifier, viewModel: MessagesViewModel
+    modifier: Modifier, onEmojiSelect: (String) -> Unit
 ) {
     val navController = rememberNavController()
     var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
@@ -103,12 +103,15 @@ actual fun EmojiPicker(
         EmojiPickerRoutes.ObjectsPage.route to Pair("⛔", indexGen.next()),
         EmojiPickerRoutes.FlagsPage.route to Pair("\uD83C\uDFC1", indexGen.next()),
     )
+    val emojiInput = remember{
+        mutableStateOf("")
+    }
     Column(modifier = modifier.width(250.dp)) {
         Row {
             TextField(
                 modifier = Modifier.fillMaxWidth(),
-                value = viewModel.emojiInput.value,
-                onValueChange = { viewModel.emojiInput.value = it },
+                value = emojiInput.value,
+                onValueChange = { emojiInput.value = it },
                 singleLine = true,
                 placeholder = { Text("Search") },
                 trailingIcon = {
@@ -116,7 +119,7 @@ actual fun EmojiPicker(
 
                     val description = "Очистить"
 
-                    IconButton(onClick = { viewModel.emojiInput.value = "" }) {
+                    IconButton(onClick = { emojiInput.value = "" }) {
                         Icon(imageVector = image, description)
                     }
                 })
@@ -155,31 +158,31 @@ actual fun EmojiPicker(
             startDestination = EmojiPickerRoutes.FacesPage.route
         ) {
             composable(EmojiPickerRoutes.FacesPage.route) {
-                EmojiGrid("smileys-emotion", viewModel.emojiInput.value, viewModel)
+                EmojiGrid("smileys-emotion", emojiInput.value, onEmojiSelect)
             }
 
             composable(EmojiPickerRoutes.ReactionsPage.route) {
-                EmojiGrid("people-body", viewModel.emojiInput.value, viewModel)
+                EmojiGrid("people-body", emojiInput.value, onEmojiSelect)
             }
 
             composable(EmojiPickerRoutes.AnimalsPage.route) {
-                EmojiGrid("animals-nature", viewModel.emojiInput.value, viewModel)
+                EmojiGrid("animals-nature", emojiInput.value, onEmojiSelect)
             }
             composable(EmojiPickerRoutes.FoodPage.route) {
-                EmojiGrid("food-drink", viewModel.emojiInput.value, viewModel)
+                EmojiGrid("food-drink", emojiInput.value, onEmojiSelect)
             }
             composable(EmojiPickerRoutes.PlacesPage.route) {
-                EmojiGrid("travel-places", viewModel.emojiInput.value, viewModel)
+                EmojiGrid("travel-places", emojiInput.value, onEmojiSelect)
             }
             composable(EmojiPickerRoutes.ActivitiesPage.route) {
-                EmojiGrid("activities", viewModel.emojiInput.value, viewModel)
+                EmojiGrid("activities", emojiInput.value, onEmojiSelect)
             }
             composable(EmojiPickerRoutes.ObjectsPage.route) {
-                EmojiGrid("objects", viewModel.emojiInput.value, viewModel)
+                EmojiGrid("objects", emojiInput.value, onEmojiSelect)
             }
 
             composable(EmojiPickerRoutes.FlagsPage.route) {
-                EmojiGrid("flags", viewModel.emojiInput.value, viewModel)
+                EmojiGrid("flags", emojiInput.value, onEmojiSelect)
             }
 
         }

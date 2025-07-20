@@ -55,6 +55,7 @@ class MessagesViewModel : ViewModel() {
     var key = mutableStateOf(0)
 
     val emojiInput = mutableStateOf("")
+    val threadEmojiInput = mutableStateOf("")
 
     var usersMap = mutableStateListOf(mutableStateOf(Pair(key.value, "")))
 
@@ -206,7 +207,7 @@ class MessagesViewModel : ViewModel() {
                 { item -> },
                 mainSnackbarHostState.value
             )
-            lazyColumnListState.scrollToItem(0)
+            lazyColumnListState.scrollToItem(threadMessages.size-1)
             threadMessage.value = ""
         }
     }
@@ -390,11 +391,6 @@ class MessagesViewModel : ViewModel() {
                                         threadMessages.add(
                                             stompMessage.data
                                         )
-//                                        if (index == 0) {
-//                                            lazyColumnListState.scrollToItem(
-//                                                0
-//                                            )
-//                                        }
                                     }
                                 }
 
