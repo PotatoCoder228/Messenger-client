@@ -346,7 +346,7 @@ class MessagesViewModel : ViewModel() {
         }
     }
 
-    @OptIn(ExperimentalAtomicApi::class)
+    @OptIn(ExperimentalAtomicApi::class, ExperimentalUuidApi::class)
     fun subscribeToMessagesUpdates(lazyColumnListState: LazyListState) {
         viewModelScope.launch {
             val sessionId = messagesSessionIdentificator.addAndFetch(1)
@@ -386,7 +386,7 @@ class MessagesViewModel : ViewModel() {
                                                 0
                                             )
                                         }
-                                    } else if (stompMessage.data?.messageType == "THREAD") {
+                                    } else if (stompMessage.data?.threadParentMsgId.toString() == selectedMsg.value?.id && stompMessage.data?.messageType == "THREAD") {
                                         threadMessages.add(
                                             stompMessage.data
                                         )
