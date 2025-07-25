@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,15 +24,22 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowLeft
+import androidx.compose.material.icons.automirrored.filled.ArrowRight
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.automirrored.filled.ReadMore
 import androidx.compose.material.icons.automirrored.outlined.Help
@@ -39,16 +47,26 @@ import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddReaction
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Css
+import androidx.compose.material.icons.filled.FilePresent
+import androidx.compose.material.icons.filled.Gif
+import androidx.compose.material.icons.filled.Html
+import androidx.compose.material.icons.filled.Javascript
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.RawOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled._3mp
 import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -58,6 +76,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -81,11 +100,15 @@ import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment.Companion.BottomCenter
+import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterEnd
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Alignment.Companion.CenterStart
@@ -104,12 +127,15 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
@@ -120,6 +146,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
 import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
+import ru.ssshteam.potatocoder228.messenger.internal.File
 import ru.ssshteam.potatocoder228.messenger.viewmodels.MessagesViewModel
 import kotlin.time.Clock
 import kotlin.time.DurationUnit
@@ -246,17 +273,15 @@ fun MessagesPage(
                                     }
                                 })
                             }, bottomBar = {
+                                val selectedFiles =
+                                    remember { mutableStateListOf<File>() }
                                 Row {
                                     IconButton(
                                         modifier = Modifier.background(Color.Transparent).align(
                                             CenterVertically
                                         ), onClick = {
                                             println("Choose file")
-                                            val fileName: String? = fileChooser?.selectFile()
-                                            if (fileName != null) {
-                                                viewModel.threadMessage.value += fileName
-                                            }
-
+                                            selectedFiles.addAll(fileChooser.selectFile())
                                         }) {
                                         Icon(
                                             Icons.Default.AttachFile,
@@ -290,7 +315,7 @@ fun MessagesPage(
                                         placeholder = { Text("Введите сообщение!") },
                                         maxLines = 3,
                                     )
-                                    val emojiSelector = remember{mutableStateOf(false)}
+                                    val emojiSelector = remember { mutableStateOf(false) }
                                     IconButton(
                                         modifier = Modifier.background(Color.Transparent).align(
                                             CenterVertically
@@ -310,7 +335,9 @@ fun MessagesPage(
                                             onDismissRequest = {
                                                 emojiSelector.value = false
                                             }) {
-                                            EmojiPicker(Modifier, {emoji -> viewModel.threadMessage.value+=emoji})
+                                            EmojiPicker(
+                                                Modifier,
+                                                { emoji -> viewModel.threadMessage.value += emoji })
                                         }
                                     }
                                     IconButton(
@@ -887,90 +914,282 @@ fun listDetailsContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun msgsScaffoldBottomContent(
     lazyColumnListState: LazyListState,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
-    Row {
-        IconButton(
-            modifier = Modifier.background(Color.Transparent).align(
-                CenterVertically
-            ), onClick = {
-                println("Choose file")
-                val fileName: String? = fileChooser?.selectFile()
-                if (fileName != null) {
-                    viewModel.message.value += fileName
-                }
+    val scope = rememberCoroutineScope()
+    val selectedFiles =
+        remember { mutableStateListOf<File>() }
+    var zoomed by remember { mutableStateOf(false) }
+    var page by remember { mutableIntStateOf(0) }
+    val iconsMapper = remember {
+        mutableMapOf(
+            "html" to Icons.Default.Html,
+            "mp3" to Icons.Default._3mp,
+            "js" to Icons.Default.Javascript,
+            "css" to Icons.Default.Css,
+            "raw" to Icons.Default.RawOn,
+            "gif" to Icons.Default.Gif,
+            "pdf" to Icons.Default.Book
+        )
+    }
 
-            }) {
-            Icon(
-                Icons.Default.AttachFile, contentDescription = "Прикрепить документ"
-            )
-        }
-        TextField(
-            modifier = Modifier.weight(1f).onPreviewKeyEvent {
-                when {
-                    (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
-                        if (viewModel.editingMode.value) {
-                            viewModel.updateMessage()
+    AnimatedVisibility(zoomed) {
+        BasicAlertDialog(
+            onDismissRequest = { zoomed = false },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false
+            ),
+            modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.9f)
+        ) {
+            val pagerState = rememberPagerState(
+                initialPage = page,
+                pageCount = {
+                    selectedFiles.size
+                })
+            Column(
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                horizontalAlignment = CenterHorizontally
+            ) {
+                Text(
+                    modifier = Modifier.fillMaxWidth(0.9f).padding(10.dp),
+                    text = selectedFiles[pagerState.currentPage].filename,
+                    maxLines = 1,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    textAlign = TextAlign.Center
+                )
+                Box(
+                    modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.9f),
+                    contentAlignment = Center
+                ) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.align(Center)
+                    ) { page ->
+                        if (selectedFiles[page].extension != "png" && selectedFiles[page].extension != "jpg") {
+                            Icon(
+                                imageVector = when (val icon =
+                                    iconsMapper[selectedFiles[page].extension]) {
+                                    null -> Icons.Default.FilePresent
+                                    else -> icon
+                                },
+                                contentDescription = "Document",
+                                modifier = Modifier
+                                    .clip(CircleShape),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         } else {
-                            viewModel.sendMessage(
-                                lazyColumnListState
+                            AsyncImage(
+                                "file://${selectedFiles[page].path}",
+                                null,
+                                modifier = Modifier.align(Center).fillMaxWidth().fillMaxHeight(),
+                                alignment = Center
                             )
                         }
-                        true
                     }
-
-                    (it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
-                        viewModel.message.value += "\n"
-                        true
+                    IconButton(modifier = Modifier.align(CenterStart).size(75.dp), onClick = {
+                        scope.launch {
+                            pagerState.scrollToPage(if (pagerState.currentPage - 1 >= 0) pagerState.currentPage - 1 else pagerState.pageCount - 1)
+                        }
+                    }) {
+                        Icon(
+                            Icons.AutoMirrored.Default.ArrowLeft, contentDescription = "Назад"
+                        )
                     }
-
-                    else -> false
+                    IconButton(modifier = Modifier.align(CenterEnd).size(75.dp), onClick = {
+                        scope.launch {
+                            pagerState.scrollToPage(if (pagerState.currentPage + 1 < pagerState.pageCount) pagerState.currentPage + 1 else 0)
+                        }
+                    }) {
+                        Icon(
+                            Icons.AutoMirrored.Default.ArrowRight, contentDescription = "Вперёд"
+                        )
+                    }
+                    Row(
+                        Modifier
+                            .wrapContentWidth()
+                            .padding(bottom = 8.dp).align(BottomCenter),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        repeat(pagerState.pageCount) { iteration ->
+                            val color =
+                                if (pagerState.currentPage == iteration) Color.DarkGray else Color.LightGray
+                            Box(
+                                modifier = Modifier
+                                    .padding(2.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .size(16.dp).clickable(
+                                        onClick = {
+                                            scope.launch {
+                                                pagerState.scrollToPage(iteration)
+                                            }
+                                        }
+                                    )
+                            )
+                        }
+                    }
                 }
-            },
-            value = viewModel.message.value,
-            onValueChange = { viewModel.message.value = it },
-            placeholder = { Text("Введите сообщение!") },
-            maxLines = 3,
-        )
-        val emojiSelector = remember{mutableStateOf(false)}
-        IconButton(
-            modifier = Modifier.background(Color.Transparent).align(
-                CenterVertically
-            ), onClick = {
-                emojiSelector.value = !emojiSelector.value
-            }) {
-            Icon(
-                Icons.Default.AddReaction, contentDescription = "Меню смайликов"
-            )
-            DropdownMenu(
-                containerColor = Color.Transparent,
-                expanded = emojiSelector.value,
-                tonalElevation = 0.dp,
-                shadowElevation = 0.dp,
-                onDismissRequest = {
-                    emojiSelector.value = false
-                }) {
-                EmojiPicker(Modifier, {emoji -> viewModel.message.value+=emoji})
             }
         }
-        IconButton(
-            modifier = Modifier.background(Color.Transparent).align(
-                CenterVertically
-            ), onClick = {
-                if (viewModel.editingMode.value) {
-                    viewModel.updateMessage()
-                } else {
-                    viewModel.sendMessage(
-                        lazyColumnListState
-                    )
+    }
+
+    Column {
+        Row {
+            LazyRow {
+                items(selectedFiles) { file ->
+                    ElevatedCard(
+                        modifier = Modifier
+                            .wrapContentWidth().wrapContentHeight()
+                    ) {
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .width(200.dp)
+                        ) {
+                            if (file.extension != "png" && file.extension != "jpg") {
+                                Icon(
+                                    imageVector = when (val icon = iconsMapper[file.extension]) {
+                                        null -> Icons.Default.FilePresent
+                                        else -> icon
+                                    },
+                                    contentDescription = "Document",
+                                    modifier = Modifier.size(
+                                        50.dp
+                                    ).clip(CircleShape)
+                                        .align(TopStart), tint = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                IconButton(
+                                    modifier = Modifier.size(50.dp),
+                                    onClick = {
+                                        zoomed = true
+                                        page = selectedFiles.indexOf(file)
+                                    }) {
+                                    AsyncImage(
+                                        "file://${file.path}", null, modifier = Modifier.size(
+                                            50.dp
+                                        ).clip(CircleShape)
+                                            .align(TopStart)
+                                    )
+                                }
+                            }
+                            Text(
+                                modifier = Modifier.align(TopStart).offset(55.dp, 3.dp)
+                                    .width(120.dp),
+                                text = file.filename,
+                                style = MaterialTheme.typography.labelMedium,
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Text(
+                                modifier = Modifier.align(CenterStart).offset(55.dp, 10.dp)
+                                    .width(120.dp),
+                                text = file.extension,
+                                style = MaterialTheme.typography.labelSmall,
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            IconButton(
+                                modifier = Modifier.align(TopEnd).size(20.dp).padding(2.dp),
+                                onClick = {
+                                    selectedFiles.remove(file)
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Close, contentDescription = "Открепить документ"
+                                )
+                            }
+                        }
+                    }
                 }
-            }) {
-            Icon(
-                Icons.Default.ChatBubble, contentDescription = "Отправить"
+            }
+        }
+        Row {
+            IconButton(
+                modifier = Modifier.background(Color.Transparent).align(
+                    CenterVertically
+                ), onClick = {
+                    println("Choose file")
+                    selectedFiles.addAll(fileChooser.selectFile())
+                    println(selectedFiles.size)
+                }) {
+                Icon(
+                    Icons.Default.AttachFile, contentDescription = "Прикрепить документ"
+                )
+            }
+            TextField(
+                modifier = Modifier.weight(1f).onPreviewKeyEvent {
+                    when {
+                        (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                            if (viewModel.editingMode.value) {
+                                viewModel.updateMessage()
+                            } else {
+                                viewModel.sendMessage(
+                                    lazyColumnListState,
+                                    selectedFiles
+                                )
+                            }
+                            true
+                        }
+
+                        (it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                            viewModel.message.value += "\n"
+                            true
+                        }
+
+                        else -> false
+                    }
+                },
+                value = viewModel.message.value,
+                onValueChange = { viewModel.message.value = it },
+                placeholder = { Text("Введите сообщение!") },
+                maxLines = 3,
             )
+            val emojiSelector = remember { mutableStateOf(false) }
+            IconButton(
+                modifier = Modifier.background(Color.Transparent).align(
+                    CenterVertically
+                ), onClick = {
+                    emojiSelector.value = !emojiSelector.value
+                }) {
+                Icon(
+                    Icons.Default.AddReaction, contentDescription = "Меню смайликов"
+                )
+                DropdownMenu(
+                    containerColor = Color.Transparent,
+                    expanded = emojiSelector.value,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
+                    onDismissRequest = {
+                        emojiSelector.value = false
+                    }) {
+                    EmojiPicker(Modifier, { emoji -> viewModel.message.value += emoji })
+                }
+            }
+            IconButton(
+                modifier = Modifier.background(Color.Transparent).align(
+                    CenterVertically
+                ), onClick = {
+                    if (viewModel.editingMode.value) {
+                        viewModel.updateMessage()
+                    } else {
+                        viewModel.sendMessage(
+                            lazyColumnListState,
+                            selectedFiles
+                        )
+                    }
+                }) {
+                Icon(
+                    Icons.Default.ChatBubble, contentDescription = "Отправить"
+                )
+            }
         }
     }
 }
@@ -1076,7 +1295,8 @@ fun msgsColumn(
                         { value -> msgMenuExpanded.value = value })
                     HorizontalDivider(
                         modifier = Modifier.widthIn(200.dp, 600.dp)
-                            .width((item!!.message.length * 14).dp)
+                            .width((item!!.message.length * 14).dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     TextButton(
                         modifier = Modifier.widthIn(200.dp, 600.dp)

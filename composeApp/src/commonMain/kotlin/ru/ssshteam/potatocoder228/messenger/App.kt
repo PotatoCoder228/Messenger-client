@@ -13,7 +13,7 @@ import ru.ssshteam.potatocoder228.messenger.dto.EmojiDataDTO
 import ru.ssshteam.potatocoder228.messenger.viewmodels.AppViewModel
 
 var datastore: DataStore? = null
-var fileChooser: FileChooser? = null
+var fileChooser: FileChooser = FileChooser()
 var emojis: EmojiDataDTO? = null
 var username: String = ""
 

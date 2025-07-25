@@ -11,6 +11,8 @@ androidx-core = "1.16.0"
 androidx-espresso = "3.6.1"
 androidx-lifecycle = "2.9.1"
 androidx-testExt = "1.2.1"
+coilCompose = "3.3.0"
+coilNetworkOkhttp = "3.3.0"
 composeHotReload = "1.0.0-alpha09"
 composeMultiplatform = "1.9.0-alpha02"
 junit = "4.13.2"
@@ -38,6 +40,8 @@ androidx-adaptive-layout = { module = "org.jetbrains.compose.material3.adaptive:
 androidx-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqliteBundled" }
 androidx-sqlite = { module = "androidx.sqlite:sqlite", version.ref = "sqlite" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
+coil3-coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coilNetworkOkhttp" }
 kotlin-stdlib-jdk8 = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8", version.ref = "kotlin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }

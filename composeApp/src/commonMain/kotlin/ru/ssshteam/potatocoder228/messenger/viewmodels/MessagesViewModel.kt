@@ -30,6 +30,7 @@ import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
 import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
 import ru.ssshteam.potatocoder228.messenger.dto.NotificationDTO
 import ru.ssshteam.potatocoder228.messenger.dto.OperationDTO
+import ru.ssshteam.potatocoder228.messenger.internal.File
 import ru.ssshteam.potatocoder228.messenger.json
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.deleteChatRequest
@@ -178,7 +179,7 @@ class MessagesViewModel : ViewModel() {
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    fun sendMessage(lazyColumnListState: LazyListState) {
+    fun sendMessage(lazyColumnListState: LazyListState, selectedFiles: MutableList<File>) {
         viewModelScope.launch {
             msgDTO.value = MessageDTO()
             msgDTO.value.message = message.value
@@ -189,6 +190,12 @@ class MessagesViewModel : ViewModel() {
                 { item -> },
                 mainSnackbarHostState.value
             )
+//            sendMessageFile(
+//                chatId = selectedChat.value?.id!!,
+//                fullPath = filename,
+//                filename = "aboba."
+//            )
+            selectedFiles.clear()
             lazyColumnListState.scrollToItem(0)
             message.value = ""
         }
@@ -207,7 +214,7 @@ class MessagesViewModel : ViewModel() {
                 { item -> },
                 mainSnackbarHostState.value
             )
-            lazyColumnListState.scrollToItem(threadMessages.size-1)
+            lazyColumnListState.scrollToItem(threadMessages.size - 1)
             threadMessage.value = ""
         }
     }

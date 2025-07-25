@@ -1,7 +1,12 @@
 package ru.ssshteam.potatocoder228.messenger
 
+import ru.ssshteam.potatocoder228.messenger.internal.File
+
 actual class FileChooser {
-    actual fun selectFile(): String? {
+    constructor() {
+    }
+
+    actual fun selectFile(): MutableList<File> {
         TODO("Not yet implemented")
     }
 }

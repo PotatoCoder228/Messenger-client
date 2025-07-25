@@ -21,6 +21,14 @@ import ru.ssshteam.potatocoder228.messenger.httpHost
 import ru.ssshteam.potatocoder228.messenger.token
 import kotlin.uuid.ExperimentalUuidApi
 
+expect suspend fun sendMessageFile(
+    chatId: String,
+    messageId: String = "",
+    fullPath: String,
+    filename: String
+)
+
+
 class MessagesPageRequests {
     companion object {
 

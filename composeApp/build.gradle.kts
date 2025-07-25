@@ -88,6 +88,8 @@ kotlin {
             implementation(libs.lifecycle.viewmodel.compose)
             implementation(compose.components.resources)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.coil.compose)
+            implementation(libs.coil3.coil.network.okhttp)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -97,6 +99,11 @@ kotlin {
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlin.stdlib.jdk8)
             implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.client.websockets)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.ktor.client.content.negotiation)
         }
     }
 }
