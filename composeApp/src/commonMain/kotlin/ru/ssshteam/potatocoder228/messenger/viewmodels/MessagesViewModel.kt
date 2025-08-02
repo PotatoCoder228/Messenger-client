@@ -35,6 +35,7 @@ import ru.ssshteam.potatocoder228.messenger.json
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.deleteChatRequest
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.getChatsRequest
+import ru.ssshteam.potatocoder228.messenger.requests.sendMessageFile
 import ru.ssshteam.potatocoder228.messenger.token
 import ru.ssshteam.potatocoder228.messenger.wsHost
 import kotlin.concurrent.atomics.AtomicInt
@@ -54,9 +55,6 @@ class MessagesViewModel : ViewModel() {
     var addChatDialogExpanded = mutableStateOf(false)
     val chatNameInput = mutableStateOf("")
     var key = mutableStateOf(0)
-
-    val emojiInput = mutableStateOf("")
-    val threadEmojiInput = mutableStateOf("")
 
     var usersMap = mutableStateListOf(mutableStateOf(Pair(key.value, "")))
 
@@ -118,6 +116,7 @@ class MessagesViewModel : ViewModel() {
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     fun showChatMessages(
         chatDTO: ChatDTO?
     ) {
@@ -138,6 +137,9 @@ class MessagesViewModel : ViewModel() {
             MessagesPageRequests.getChatMessagesRequest(
                 chatDTO, mainSnackbarHostState.value
             ) { message ->
+                for (file in message.filesUrls) {
+                    println(file.name)
+                }
                 message.unreadMessages = message.newThreadMessages
                 messages.add(
                     message
@@ -184,17 +186,21 @@ class MessagesViewModel : ViewModel() {
             msgDTO.value = MessageDTO()
             msgDTO.value.message = message.value
             msgDTO.value.messageType = "REGULAR"
-            MessagesPageRequests.sendMessageRequest(
+            val addedMessageDTO = MessagesPageRequests.sendMessageRequest(
                 selectedChat.value,
                 msgDTO.value,
                 { item -> },
                 mainSnackbarHostState.value
             )
-//            sendMessageFile(
-//                chatId = selectedChat.value?.id!!,
-//                fullPath = filename,
-//                filename = "aboba."
-//            )
+            if (addedMessageDTO.id != Uuid.NIL && selectedFiles.size != 0) {
+                sendMessageFile(
+                    chatId = selectedChat.value?.id!!.toString(),
+                    messageId = addedMessageDTO.id.toString(),
+                    files = selectedFiles
+                )
+            } else {
+                println("uuid is null! ${addedMessageDTO.id}")
+            }
             selectedFiles.clear()
             lazyColumnListState.scrollToItem(0)
             message.value = ""
@@ -207,7 +213,7 @@ class MessagesViewModel : ViewModel() {
             threadMsgDTO.value = MessageDTO()
             threadMsgDTO.value.message = threadMessage.value
             threadMsgDTO.value.messageType = "THREAD"
-            threadMsgDTO.value.threadParentMsgId = Uuid.parse(selectedMsg.value!!.id)
+            threadMsgDTO.value.threadParentMsgId = selectedMsg.value!!.id
             MessagesPageRequests.sendThreadMessageRequest(
                 selectedChat.value,
                 threadMsgDTO.value,
@@ -283,6 +289,7 @@ class MessagesViewModel : ViewModel() {
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     fun deleteChat(chatDTO: ChatDTO?) {
         viewModelScope.launch {
             if (selectedChat.value?.id == chatDTO?.id) {
@@ -299,7 +306,7 @@ class MessagesViewModel : ViewModel() {
         addChatDialogExpanded.value = true
     }
 
-    @OptIn(ExperimentalAtomicApi::class)
+    @OptIn(ExperimentalAtomicApi::class, ExperimentalUuidApi::class)
     fun subscribeToUpdates() {
         viewModelScope.launch {
             val identificator = chatsSessionIdentificator.addAndFetch(1)
@@ -394,7 +401,7 @@ class MessagesViewModel : ViewModel() {
                                                 0
                                             )
                                         }
-                                    } else if (stompMessage.data?.threadParentMsgId.toString() == selectedMsg.value?.id && stompMessage.data?.messageType == "THREAD") {
+                                    } else if (stompMessage.data?.threadParentMsgId == selectedMsg.value?.id && stompMessage.data?.messageType == "THREAD") {
                                         threadMessages.add(
                                             stompMessage.data
                                         )
@@ -482,11 +489,14 @@ class MessagesViewModel : ViewModel() {
                             }
                             when (stompMessage.type) {
                                 "NEW_MESSAGE" -> {
+                                    println("NEW_MESSAGE")
                                     try {
                                         val first = chats.withIndex().firstOrNull {
                                             (stompMessage.chatId) == (it.value?.id)
                                         }
+                                        println("NEW_MESSAGE2")
                                         if (first != null && selectedChat.value?.id != first.value?.id) {
+                                            println("NEW_MESSAGE3")
                                             chats[first.index] =
                                                 chats[first.index]?.copy(unreadedMessages = first.value?.unreadedMessages!! + 1)
                                         }
@@ -496,11 +506,15 @@ class MessagesViewModel : ViewModel() {
                                 }
 
                                 "NEW_THREAD_MESSAGE" -> {
+                                    println("NEW_THREAD_MESSAGE")
                                     try {
                                         val jsonElement = Json.parseToJsonElement(stompMessage.data)
                                         val first = messages.withIndex().firstOrNull {
                                             val id = jsonElement.jsonObject["threadId"].toString()
-                                            (id.subSequence(1, id.length - 1)) == (it.value?.id)
+                                            (id.subSequence(
+                                                1,
+                                                id.length - 1
+                                            )) == (it.value?.id.toString())
                                         }
                                         if (first != null && selectedMsg.value?.id != first.value?.id) {
                                             messages[first.index] =

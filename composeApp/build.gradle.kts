@@ -104,6 +104,7 @@ kotlin {
             implementation(libs.ktor.client.websockets)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.content.negotiation)
+            implementation("ch.qos.logback:logback-classic:1.3.15")
         }
     }
 }

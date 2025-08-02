@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
@@ -51,6 +52,7 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Css
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FilePresent
 import androidx.compose.material.icons.filled.Gif
 import androidx.compose.material.icons.filled.Html
@@ -81,6 +83,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -159,7 +162,8 @@ enum class UiState {
 }
 
 @OptIn(
-    ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class
+    ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class,
+    ExperimentalUuidApi::class
 )
 @Composable
 fun MessagesPage(
@@ -640,7 +644,7 @@ fun chatsSearchBarInput(
     )
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalUuidApi::class)
 @Composable
 fun chatsList(
     scaffoldNavigator: ThreePaneScaffoldNavigator<String>,
@@ -1241,7 +1245,7 @@ fun msgsScaffoldTopBar(
 }
 
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalUuidApi::class)
 @Composable
 fun msgsColumn(
     lazyColumnListState: LazyListState,
@@ -1293,9 +1297,65 @@ fun msgsColumn(
                         item,
                         msgMenuExpanded.value,
                         { value -> msgMenuExpanded.value = value })
+
+                    if (item?.filesUrls?.size!! > 0) {
+                        LazyColumn(
+                            modifier = Modifier.heightIn(50.dp, 600.dp).padding(0.dp, 5.dp)
+                                .width((item.message.length * 14).dp)
+                        ) {
+                            items(
+                                items = item.filesUrls, key = { file ->
+                                    file.id
+                                }) { msg ->
+                                Row {
+                                    IconButton(
+                                        onClick = {},
+                                        colors = IconButtonColors(
+                                            MaterialTheme.colorScheme.secondaryContainer,
+                                            MaterialTheme.colorScheme.onSecondaryContainer,
+                                            MaterialTheme.colorScheme.surfaceContainer,
+                                            MaterialTheme.colorScheme.onSurface
+                                        )
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Download,
+                                            contentDescription = "Download file",
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            msg.name,
+                                            modifier = Modifier.width((item.message.length * 14).dp)
+                                                .padding(2.dp),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Row(Modifier.width(50.dp)) {
+                                            Text(
+                                                msg.contentType,
+                                                modifier = Modifier
+                                                    .padding(2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                maxLines = 1
+                                            )
+                                            Text(
+                                                msg.size.toString() + " байт",
+                                                modifier = Modifier.width((item.message.length * 16).dp)
+                                                    .padding(2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     HorizontalDivider(
                         modifier = Modifier.widthIn(200.dp, 600.dp)
-                            .width((item!!.message.length * 14).dp),
+                            .width((item.message.length * 16).dp),
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     TextButton(

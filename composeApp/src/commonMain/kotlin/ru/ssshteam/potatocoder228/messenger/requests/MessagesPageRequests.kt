@@ -24,8 +24,7 @@ import kotlin.uuid.ExperimentalUuidApi
 expect suspend fun sendMessageFile(
     chatId: String,
     messageId: String = "",
-    fullPath: String,
-    filename: String
+    files: MutableList<ru.ssshteam.potatocoder228.messenger.internal.File>
 )
 
 
@@ -96,12 +95,13 @@ class MessagesPageRequests {
             }
         }
 
+        @OptIn(ExperimentalUuidApi::class)
         suspend fun sendMessageRequest(
             chatDTO: ChatDTO?,
             messageDTO: MessageDTO?,
             onChatsChange: (ChatDTO) -> Unit,
             snackbarHostState: SnackbarHostState
-        ) {
+        ): MessageDTO {
             try {
                 val httpResponse: HttpResponse =
                     httpClient.post("$httpHost/chat/${chatDTO?.id}/send") {
@@ -113,14 +113,18 @@ class MessagesPageRequests {
                     }
                 if (httpResponse.status.value in 200..299) {
 //                    onChatsChange(httpResponse.body())
+                    return httpResponse.body()
                 } else {
                     errorAction(httpResponse, snackbarHostState)
+                    return MessageDTO()
                 }
             } catch (e: Throwable) {
                 exceptionAction(e, snackbarHostState)
+                return MessageDTO()
             }
         }
 
+        @OptIn(ExperimentalUuidApi::class)
         suspend fun deleteMessageRequest(
             chatDTO: ChatDTO?,
             messageDTO: MessageDTO?,
@@ -146,6 +150,7 @@ class MessagesPageRequests {
             }
         }
 
+        @OptIn(ExperimentalUuidApi::class)
         suspend fun updateMessageRequest(
             chatDTO: ChatDTO?,
             messageDTO: MessageDTO?,
@@ -171,6 +176,7 @@ class MessagesPageRequests {
             }
         }
 
+        @OptIn(ExperimentalUuidApi::class)
         suspend fun updateLastEnterRequest(
             chatDTO: ChatDTO?,
             onChatsChange: (ChatDTO) -> Unit,
@@ -194,6 +200,7 @@ class MessagesPageRequests {
             }
         }
 
+        @OptIn(ExperimentalUuidApi::class)
         suspend fun updateLastThreadEnterRequest(
             chatDTO: ChatDTO?,
             msgDTO: MessageDTO,
@@ -218,6 +225,7 @@ class MessagesPageRequests {
             }
         }
 
+        @OptIn(ExperimentalUuidApi::class)
         suspend fun deleteChatRequest(
             chatDTO: ChatDTO?,
             onChatsChange: (ChatDTO) -> Unit,
@@ -241,6 +249,7 @@ class MessagesPageRequests {
             }
         }
 
+        @OptIn(ExperimentalUuidApi::class)
         suspend fun getChatMessagesRequest(
             chatDTO: ChatDTO?,
             snackbarHostState: SnackbarHostState,
@@ -290,6 +299,7 @@ class MessagesPageRequests {
             }
         }
 
+        @OptIn(ExperimentalUuidApi::class)
         suspend fun getThreadMessagesRequest(
             chatDTO: ChatDTO?,
             messageDTO: MessageDTO?,

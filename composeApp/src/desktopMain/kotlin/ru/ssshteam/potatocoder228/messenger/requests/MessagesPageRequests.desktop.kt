@@ -1,5 +1,6 @@
 package ru.ssshteam.potatocoder228.messenger.requests
 
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.header
@@ -7,31 +8,25 @@ import io.ktor.client.request.headers
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
-import io.ktor.utils.io.InternalAPI
 import ru.ssshteam.potatocoder228.messenger.httpClient
 import ru.ssshteam.potatocoder228.messenger.httpHost
 import ru.ssshteam.potatocoder228.messenger.token
 import java.io.File
 
-@OptIn(InternalAPI::class)
 actual suspend fun sendMessageFile(
     chatId: String,
     messageId: String,
-    fullPath: String,
-    filename: String
+    files: MutableList<ru.ssshteam.potatocoder228.messenger.internal.File>
 ) {
-    println("$chatId $fullPath")
     val response: HttpResponse = httpClient.submitFormWithBinaryData(
-        url = "$httpHost/chat/${chatId}/file",
+        url = "$httpHost/chat/${chatId}/message/${messageId}/files",
         formData = formData {
-            append("files", File(fullPath).readBytes(), Headers.build {
-                append(HttpHeaders.ContentType, "image/png")
-                append(HttpHeaders.ContentDisposition, "filename=\"ktor_logo.png\"")
-            })
-//            append("files", File(fullPath).readBytes(), Headers.build {
-//                append(HttpHeaders.ContentType, "image/png")
-//                append(HttpHeaders.ContentDisposition, "filename=\"ktor_logo.png\"")
-//            })
+            for (file in files) {
+                append("files", File(file.path).readBytes(), Headers.build {
+                    append(HttpHeaders.ContentType, "multipart/form-data")
+                    append(HttpHeaders.ContentDisposition, "filename=\"${file.filename}\"")
+                })
+            }
         },
         block = {
             headers {

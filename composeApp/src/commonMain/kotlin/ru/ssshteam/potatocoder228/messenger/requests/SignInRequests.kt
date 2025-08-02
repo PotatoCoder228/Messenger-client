@@ -18,10 +18,12 @@ import ru.ssshteam.potatocoder228.messenger.dto.UserAuthDTO
 import ru.ssshteam.potatocoder228.messenger.httpClient
 import ru.ssshteam.potatocoder228.messenger.httpHost
 import ru.ssshteam.potatocoder228.messenger.token
+import kotlin.uuid.ExperimentalUuidApi
 
 class SignInRequests {
     companion object {
 
+        @OptIn(ExperimentalUuidApi::class)
         private suspend fun successAction(
             httpResponse: HttpResponse,
             navController: NavHostController
@@ -29,7 +31,7 @@ class SignInRequests {
             val tokenDto: TokenDTO = httpResponse.body()
 
             datastore?.saveCookie("token", tokenDto.token)
-            datastore?.saveCookie("userId", tokenDto.userId)
+            datastore?.saveCookie("userId", tokenDto.userId.toString())
 
             token = mutableStateOf(tokenDto)
             navController.navigate(PageRoutes.MessagesPage.route)
