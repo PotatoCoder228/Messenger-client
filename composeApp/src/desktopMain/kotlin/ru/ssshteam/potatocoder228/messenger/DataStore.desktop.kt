@@ -1,15 +1,18 @@
 package ru.ssshteam.potatocoder228.messenger
 
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import androidx.sqlite.driver.bundled.SQLITE_OPEN_CREATE
+import androidx.sqlite.driver.bundled.SQLITE_OPEN_NOMUTEX
+import androidx.sqlite.driver.bundled.SQLITE_OPEN_READWRITE
 import androidx.sqlite.execSQL
 
 actual class DataStore actual constructor() : AutoCloseable {
-    private var databaseConnection = BundledSQLiteDriver().open("Cookie.db")
+    private var databaseConnection = BundledSQLiteDriver().open("Cookie.db",  SQLITE_OPEN_CREATE or SQLITE_OPEN_READWRITE or SQLITE_OPEN_NOMUTEX)
 
     init {
-        databaseConnection.prepare("PRAGMA journal_mode=DELETE").step()
-        databaseConnection.prepare("PRAGMA cipher = 'chacha20'").step()
-        databaseConnection.prepare("PRAGMA key = 'MyBigKey'").step()
+        //databaseConnection.prepare("PRAGMA journal_mode=DELETE").step()
+        databaseConnection.prepare("PRAGMA cipher='chacha20'").step()
+        databaseConnection.prepare("PRAGMA key='MyBigKey'").step()
         databaseConnection.execSQL(
             "CREATE TABLE IF NOT EXISTS Cookie (id INTEGER PRIMARY KEY, key TEXT UNIQUE, data TEXT)"
         )
@@ -17,7 +20,7 @@ actual class DataStore actual constructor() : AutoCloseable {
 
     actual fun saveCookie(key: String, data: String, daysToLive: Int) {
         databaseConnection.prepare(
-            "INSERT INTO Cookie (key, DATA) VALUES (?,?) ON CONFLICT (key) DO UPDATE SET DATA = ?"
+            "INSERT INTO Cookie (key, DATA) VALUES (?,?) ON CONFLICT (key) DO UPDATE SET DATA=?"
         ).use { stmt ->
             stmt.bindText(index = 1, value = key)
             stmt.bindText(index = 2, value = data)
@@ -28,9 +31,9 @@ actual class DataStore actual constructor() : AutoCloseable {
 
     actual fun getCookie(key: String): String {
         var result = ""
-        databaseConnection.prepare("SELECT key FROM Cookie WHERE key = ?").use { stmt ->
+        databaseConnection.prepare("SELECT data FROM Cookie WHERE key=?").use { stmt ->
             stmt.bindText(index = 1, value = key)
-            while (stmt.step()) {
+            if (stmt.step()) {
                 result = stmt.getText(0)
             }
         }

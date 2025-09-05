@@ -59,7 +59,6 @@ kotlin {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.kotlin.stdlib.jdk8)
-            implementation(libs.androidx.sqlite.bundled)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -90,6 +89,8 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.coil.compose)
             implementation(libs.coil3.coil.network.okhttp)
+            implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.androidx.sqlite)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -98,13 +99,12 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlin.stdlib.jdk8)
-            implementation(libs.androidx.sqlite.bundled)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.websockets)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.content.negotiation)
-            implementation("ch.qos.logback:logback-classic:1.3.15")
+            implementation(libs.logback.classic)
         }
     }
 }

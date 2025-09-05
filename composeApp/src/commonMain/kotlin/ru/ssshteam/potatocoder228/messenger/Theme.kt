@@ -260,12 +260,12 @@ fun AppTheme(
         mutableStateOf(
             when {
                 darkTheme -> darkScheme
-                else -> lightScheme
+                else -> darkScheme
             }
         )
     }
     if (colorScheme == darkScheme && !darkTheme) {
-        colorScheme = lightScheme
+        colorScheme = darkScheme
     } else if (colorScheme == lightScheme && darkTheme) {
         colorScheme = darkScheme
     }

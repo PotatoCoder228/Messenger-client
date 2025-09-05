@@ -12,7 +12,6 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import ru.ssshteam.potatocoder228.messenger.PageRoutes
-import ru.ssshteam.potatocoder228.messenger.datastore
 import ru.ssshteam.potatocoder228.messenger.dto.TokenDTO
 import ru.ssshteam.potatocoder228.messenger.dto.UserAuthDTO
 import ru.ssshteam.potatocoder228.messenger.httpClient
@@ -29,9 +28,6 @@ class SignInRequests {
             navController: NavHostController
         ) {
             val tokenDto: TokenDTO = httpResponse.body()
-
-            datastore?.saveCookie("token", tokenDto.token)
-            datastore?.saveCookie("userId", tokenDto.userId.toString())
 
             token = mutableStateOf(tokenDto)
             navController.navigate(PageRoutes.MessagesPage.route)

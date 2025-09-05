@@ -3,8 +3,8 @@ package ru.ssshteam.potatocoder228.messenger
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontFamily
-import messenger.composeapp.generated.resources.JetBrainsMono_Medium
-import messenger.composeapp.generated.resources.JetBrainsMono_SemiBold
+import messenger.composeapp.generated.resources.NotoSans_Regular
+import messenger.composeapp.generated.resources.NotoSans_SemiBold
 import messenger.composeapp.generated.resources.Res
 import org.jetbrains.compose.resources.Font
 
@@ -14,12 +14,24 @@ val baseline = Typography()
 
 val displayFontFamily
     @Composable // Composable is required for loading font from compose resources
-    get() = FontFamily(Font(resource = Res.font.JetBrainsMono_SemiBold))
+    get() = FontFamily(Font(resource = Res.font.NotoSans_Regular))
+
+val headlineFontFamily
+    @Composable // Composable is required for loading font from compose resources
+    get() = FontFamily(Font(resource = Res.font.NotoSans_SemiBold))
+
+val titleFontFamily
+    @Composable // Composable is required for loading font from compose resources
+    get() = FontFamily(Font(resource = Res.font.NotoSans_SemiBold))
+
+val labelFontFamily
+    @Composable // Composable is required for loading font from compose resources
+    get() = FontFamily(Font(resource = Res.font.NotoSans_SemiBold))
 
 
 val bodyFontFamily
     @Composable // Composable is required for loading font from compose resources
-    get() = FontFamily(Font(resource = Res.font.JetBrainsMono_Medium))
+    get() = FontFamily(Font(resource = Res.font.NotoSans_Regular))
 
 // Or you can also apply font to all styles
 val AppTypography
@@ -28,17 +40,17 @@ val AppTypography
         displayLarge = baseline.displayLarge.copy(fontFamily = displayFontFamily),
         displayMedium = baseline.displayMedium.copy(fontFamily = displayFontFamily),
         displaySmall = baseline.displaySmall.copy(fontFamily = displayFontFamily),
-        headlineLarge = baseline.headlineLarge.copy(fontFamily = displayFontFamily),
-        headlineMedium = baseline.headlineMedium.copy(fontFamily = displayFontFamily),
-        headlineSmall = baseline.headlineSmall.copy(fontFamily = displayFontFamily),
-        titleLarge = baseline.titleLarge.copy(fontFamily = displayFontFamily),
-        titleMedium = baseline.titleMedium.copy(fontFamily = displayFontFamily),
-        titleSmall = baseline.titleSmall.copy(fontFamily = displayFontFamily),
+        headlineLarge = baseline.headlineLarge.copy(fontFamily = headlineFontFamily),
+        headlineMedium = baseline.headlineMedium.copy(fontFamily = headlineFontFamily),
+        headlineSmall = baseline.headlineSmall.copy(fontFamily = headlineFontFamily),
+        titleLarge = baseline.titleLarge.copy(fontFamily = titleFontFamily),
+        titleMedium = baseline.titleMedium.copy(fontFamily = titleFontFamily),
+        titleSmall = baseline.titleSmall.copy(fontFamily = titleFontFamily),
         bodyLarge = baseline.bodyLarge.copy(fontFamily = bodyFontFamily),
         bodyMedium = baseline.bodyMedium.copy(fontFamily = bodyFontFamily),
         bodySmall = baseline.bodySmall.copy(fontFamily = bodyFontFamily),
-        labelLarge = baseline.labelLarge.copy(fontFamily = bodyFontFamily),
-        labelMedium = baseline.labelMedium.copy(fontFamily = bodyFontFamily),
-        labelSmall = baseline.labelSmall.copy(fontFamily = bodyFontFamily),
+        labelLarge = baseline.labelLarge.copy(fontFamily = labelFontFamily),
+        labelMedium = baseline.labelMedium.copy(fontFamily = labelFontFamily),
+        labelSmall = baseline.labelSmall.copy(fontFamily = labelFontFamily),
     )
 

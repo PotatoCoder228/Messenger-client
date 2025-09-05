@@ -5,8 +5,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -49,10 +55,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddReaction
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Css
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilePresent
 import androidx.compose.material.icons.filled.Gif
 import androidx.compose.material.icons.filled.Html
@@ -69,6 +77,7 @@ import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -78,7 +87,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -87,6 +95,8 @@ import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SmallFloatingActionButton
@@ -94,6 +104,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
@@ -101,6 +113,7 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -110,6 +123,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.BottomCenter
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterEnd
@@ -119,8 +133,12 @@ import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Alignment.Companion.TopEnd
 import androidx.compose.ui.Alignment.Companion.TopStart
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -129,9 +147,13 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -155,7 +177,6 @@ import kotlin.time.Clock
 import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
-
 
 enum class UiState {
     Loading, Loaded
@@ -185,7 +206,7 @@ fun MessagesPage(
             snackbarHost = {
                 SnackbarHost(hostState = viewModel.mainSnackbarHostState.value)
             }, topBar = {
-                TopAppBar(title = {
+                TopAppBar(modifier = Modifier.shadow(4.dp), title = {
                     Text(
                         "ShhhChat", style = MaterialTheme.typography.headlineLarge
                     )
@@ -206,7 +227,7 @@ fun MessagesPage(
             val scaffoldNavigator = rememberListDetailPaneScaffoldNavigator<String>()
             remember(token?.value?.userId) {
                 mutableStateOf(
-                    viewModel.loadChats()
+                    viewModel.loadChats(navController)
                 )
             }
             ListDetailPaneScaffold(
@@ -228,7 +249,7 @@ fun MessagesPage(
                         enterTransition = fadeIn(),
                         exitTransition = fadeOut()
                     ) {
-                        ChatsPane(scaffoldNavigator)
+                        ChatsPane(scaffoldNavigator, navController)
                     }
                 },
                 detailPane = {
@@ -243,7 +264,7 @@ fun MessagesPage(
                         enterTransition = fadeIn(),
                         exitTransition = fadeOut()
                     ) {
-                        listDetailsContent(scaffoldNavigator)
+                        listDetailsContent(scaffoldNavigator, navController)
                     }
                 }, extraPane = {
                     AnimatedPane(
@@ -279,87 +300,128 @@ fun MessagesPage(
                             }, bottomBar = {
                                 val selectedFiles =
                                     remember { mutableStateListOf<File>() }
-                                Row {
-                                    IconButton(
-                                        modifier = Modifier.background(Color.Transparent).align(
-                                            CenterVertically
-                                        ), onClick = {
-                                            println("Choose file")
-                                            selectedFiles.addAll(fileChooser.selectFile())
-                                        }) {
-                                        Icon(
-                                            Icons.Default.AttachFile,
-                                            contentDescription = "Прикрепить документ"
-                                        )
-                                    }
-                                    TextField(
-                                        modifier = Modifier.weight(1f).onPreviewKeyEvent {
-                                            when {
-                                                (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
-                                                    if (viewModel.threadEditingMode.value) {
-                                                        viewModel.updateThreadMessage()
-                                                    } else {
-                                                        viewModel.sendThreadMessage(
-                                                            lazyColumnListState
-                                                        )
-                                                    }
-                                                    true
+                                Column {
+                                    androidx.compose.animation.AnimatedVisibility(viewModel.threadEditingMode.value) {
+                                        ElevatedCard {
+                                            Box(Modifier.fillMaxWidth().height(50.dp)) {
+                                                Icon(
+                                                    Icons.Filled.Edit,
+                                                    contentDescription = "Edit",
+                                                    modifier = Modifier.align(CenterStart)
+                                                        .padding(15.dp, 0.dp).size(25.dp)
+                                                )
+                                                Text(
+                                                    "Редактирование",
+                                                    modifier = Modifier.align(TopStart)
+                                                        .offset(50.dp, 0.dp),
+                                                    style = MaterialTheme.typography.titleSmall
+                                                )
+                                                Text(
+                                                    viewModel.editingThreadMsgOrigText.value,
+                                                    modifier = Modifier.align(CenterStart)
+                                                        .basicMarquee().offset(50.dp, 0.dp)
+                                                        .width(500.dp),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    maxLines = 1
+                                                )
+                                                IconButton(
+                                                    modifier = Modifier.align(CenterEnd)
+                                                        .size(25.dp), onClick = {
+                                                        viewModel.threadEditingMode.value = false
+                                                    }) {
+                                                    Icon(
+                                                        Icons.Filled.Cancel,
+                                                        contentDescription = "Cancel editing"
+                                                    )
                                                 }
-
-                                                (it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
-                                                    viewModel.threadMessage.value += "\n"
-                                                    true
-                                                }
-
-                                                else -> false
                                             }
-                                        },
-                                        value = viewModel.threadMessage.value,
-                                        onValueChange = { viewModel.threadMessage.value = it },
-                                        placeholder = { Text("Введите сообщение!") },
-                                        maxLines = 3,
-                                    )
-                                    val emojiSelector = remember { mutableStateOf(false) }
-                                    IconButton(
-                                        modifier = Modifier.background(Color.Transparent).align(
-                                            CenterVertically
-                                        ), onClick = {
-                                            emojiSelector.value =
-                                                !emojiSelector.value
-                                        }) {
-                                        Icon(
-                                            Icons.Default.AddReaction,
-                                            contentDescription = "Меню смайликов"
-                                        )
-                                        DropdownMenu(
-                                            containerColor = Color.Transparent,
-                                            expanded = emojiSelector.value,
-                                            tonalElevation = 0.dp,
-                                            shadowElevation = 0.dp,
-                                            onDismissRequest = {
-                                                emojiSelector.value = false
-                                            }) {
-                                            EmojiPicker(
-                                                Modifier,
-                                                { emoji -> viewModel.threadMessage.value += emoji })
                                         }
                                     }
-                                    IconButton(
-                                        modifier = Modifier.background(Color.Transparent).align(
-                                            CenterVertically
-                                        ), onClick = {
-                                            if (viewModel.threadEditingMode.value) {
-                                                viewModel.updateThreadMessage()
-                                            } else {
-                                                viewModel.sendThreadMessage(
-                                                    lazyColumnListState
-                                                )
-                                            }
-                                        }) {
-                                        Icon(
-                                            Icons.Default.ChatBubble,
-                                            contentDescription = "Отправить"
+                                    Row {
+                                        IconButton(
+                                            modifier = Modifier.background(Color.Transparent).align(
+                                                CenterVertically
+                                            ), onClick = {
+                                                println("Choose file")
+                                                selectedFiles.addAll(fileChooser.selectFile())
+                                            }) {
+                                            Icon(
+                                                Icons.Default.AttachFile,
+                                                contentDescription = "Прикрепить документ"
+                                            )
+                                        }
+                                        TextField(
+                                            modifier = Modifier.weight(1f).onPreviewKeyEvent {
+                                                when {
+                                                    (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                                                        if (viewModel.threadEditingMode.value) {
+                                                            viewModel.updateThreadMessage(
+                                                                navController
+                                                            )
+                                                        } else {
+                                                            viewModel.sendThreadMessage(
+                                                                lazyColumnListState, navController
+                                                            )
+                                                        }
+                                                        true
+                                                    }
+
+                                                    (it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
+                                                        viewModel.threadMessage.value += "\n"
+                                                        true
+                                                    }
+
+                                                    else -> false
+                                                }
+                                            },
+                                            value = viewModel.threadMessage.value,
+                                            onValueChange = { viewModel.threadMessage.value = it },
+                                            placeholder = { Text("Введите сообщение!") },
+                                            maxLines = 3,
                                         )
+                                        val emojiSelector = remember { mutableStateOf(false) }
+                                        IconButton(
+                                            modifier = Modifier.background(Color.Transparent).align(
+                                                CenterVertically
+                                            ), onClick = {
+                                                emojiSelector.value =
+                                                    !emojiSelector.value
+                                            }) {
+                                            Icon(
+                                                Icons.Default.AddReaction,
+                                                contentDescription = "Меню смайликов"
+                                            )
+                                            DropdownMenu(
+                                                containerColor = Color.Transparent,
+                                                expanded = emojiSelector.value,
+                                                tonalElevation = 0.dp,
+                                                shadowElevation = 0.dp,
+                                                onDismissRequest = {
+                                                    emojiSelector.value = false
+                                                }) {
+                                                EmojiPicker(
+                                                    Modifier,
+                                                    { emoji -> viewModel.threadMessage.value += emoji })
+                                            }
+                                        }
+                                        IconButton(
+                                            modifier = Modifier.background(Color.Transparent).align(
+                                                CenterVertically
+                                            ), onClick = {
+                                                if (viewModel.threadEditingMode.value) {
+                                                    viewModel.updateThreadMessage(navController)
+                                                } else {
+                                                    viewModel.sendThreadMessage(
+                                                        lazyColumnListState,
+                                                        navController
+                                                    )
+                                                }
+                                            }) {
+                                            Icon(
+                                                Icons.Default.ChatBubble,
+                                                contentDescription = "Отправить"
+                                            )
+                                        }
                                     }
                                 }
                             }) {
@@ -371,7 +433,7 @@ fun MessagesPage(
                                                 remember { mutableStateOf(false) }
                                             Box(Modifier.fillMaxWidth().padding(5.dp, 5.dp)) {
                                                 ElevatedCard(
-                                                    modifier = Modifier.widthIn(200.dp, 600.dp),
+                                                    modifier = Modifier.widthIn(250.dp, 600.dp),
                                                     onClick = {
                                                         scope.launch {
                                                             msgMenuExpanded.value = true
@@ -396,7 +458,7 @@ fun MessagesPage(
                                                     shape = RoundedCornerShape(10.dp),
                                                 ) {
                                                     if (viewModel.msgBoxModifier.value == null) {
-                                                        Modifier.widthIn(200.dp, 600.dp)
+                                                        Modifier.widthIn(250.dp, 600.dp)
                                                             .padding(2.dp).also {
                                                                 viewModel.msgBoxModifier.value = it
                                                             }
@@ -404,7 +466,9 @@ fun MessagesPage(
                                                     msgBox(
                                                         viewModel.selectedMsg.value,
                                                         msgMenuExpanded.value,
-                                                        { value -> msgMenuExpanded.value = value })
+                                                        { value -> msgMenuExpanded.value = value },
+                                                        navController
+                                                    )
 
                                                 }
                                             }
@@ -429,7 +493,7 @@ fun MessagesPage(
                                             val msgMenuExpanded =
                                                 remember { mutableStateOf(false) }
                                             ElevatedCard(
-                                                modifier = Modifier.widthIn(200.dp, 600.dp)
+                                                modifier = Modifier.widthIn(250.dp, 600.dp)
                                                     .padding(5.dp, 5.dp),
                                                 onClick = {
                                                     scope.launch {
@@ -455,7 +519,7 @@ fun MessagesPage(
                                                 shape = RoundedCornerShape(10.dp),
                                             ) {
                                                 if (viewModel.msgBoxModifier.value == null) {
-                                                    Modifier.widthIn(200.dp, 600.dp)
+                                                    Modifier.widthIn(250.dp, 600.dp)
                                                         .padding(2.dp).also {
                                                             viewModel.msgBoxModifier.value = it
                                                         }
@@ -463,7 +527,9 @@ fun MessagesPage(
                                                 msgBox(
                                                     item,
                                                     msgMenuExpanded.value,
-                                                    { value -> msgMenuExpanded.value = value })
+                                                    { value -> msgMenuExpanded.value = value },
+                                                    navController
+                                                )
                                             }
                                         }
                                     }
@@ -480,10 +546,11 @@ fun MessagesPage(
 @Composable
 fun ChatsPane(
     scaffoldNavigator: ThreePaneScaffoldNavigator<String>,
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     AnimatedVisibility(viewModel.addChatDialogExpanded.value) {
-        chatsAddNewChatDialog()
+        chatsAddNewChatDialog(navController)
     }
     Scaffold(
         snackbarHost = {
@@ -502,11 +569,11 @@ fun ChatsPane(
     ) {
         Column {
             DockedSearchBar(
-                modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp)
+                modifier = Modifier.fillMaxWidth().height(70.dp).padding(0.dp, 8.dp)
                     .semantics { traversalIndex = 0f },
                 shape = RoundedCornerShape(8.dp),
                 inputField = {
-                    chatsSearchBarInput()
+                    chatsSearchBarInput(navController)
                 },
                 expanded = viewModel.expanded.value,
                 onExpandedChange = { viewModel.expanded.value = it },
@@ -515,20 +582,21 @@ fun ChatsPane(
             }
             rememberSaveable(token) {
                 viewModel.subscribeToUpdates()
-                viewModel.subscribeToNotifications()
+                viewModel.subscribeToNotifications(navController)
             }
-            chatsList(scaffoldNavigator)
+            chatsList(scaffoldNavigator, navController)
         }
     }
 }
 
 @Composable
 expect fun EmojiPicker(
-    modifier: Modifier, onEmojiSelect: (String) -> Unit
+    modifier: Modifier, onEmojiSelect: (String) -> Unit,
 )
 
 @Composable
 fun chatsAddNewChatDialog(
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     Dialog(onDismissRequest = {
@@ -586,7 +654,7 @@ fun chatsAddNewChatDialog(
                     }
                     FloatingActionButton(
                         modifier = Modifier.padding(10.dp), onClick = {
-                            viewModel.addChat()
+                            viewModel.addChat(navController)
                         }) {
                         Icon(
                             Icons.Default.ChatBubble, contentDescription = "Создать чат"
@@ -601,11 +669,12 @@ fun chatsAddNewChatDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun chatsSearchBarInput(
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     val textFieldState = rememberTextFieldState()
     SearchBarDefaults.InputField(
-        modifier = Modifier.height(75.dp),
+        modifier = Modifier.height(50.dp),
         query = textFieldState.text.toString(),
         onQueryChange = {
             textFieldState.edit {
@@ -648,7 +717,8 @@ fun chatsSearchBarInput(
 @Composable
 fun chatsList(
     scaffoldNavigator: ThreePaneScaffoldNavigator<String>,
-    viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
+    navController: NavHostController,
+    viewModel: MessagesViewModel = viewModel { MessagesViewModel() },
 ) {
     val scope = rememberCoroutineScope()
     LazyColumn {
@@ -663,8 +733,14 @@ fun chatsList(
                             ListDetailPaneScaffoldRole.Detail
                         )
                     }
-                    viewModel.showChatMessages(item)
+                    viewModel.showChatMessages(item, navController)
                 },
+                colors = CardColors(
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    MaterialTheme.colorScheme.onSecondaryContainer,
+                    MaterialTheme.colorScheme.secondaryFixedDim,
+                    MaterialTheme.colorScheme.onSecondaryFixed
+                ),
                 shape = RoundedCornerShape(5.dp),
             ) {
                 if (viewModel.chatBoxModifier.value == null) {
@@ -672,15 +748,18 @@ fun chatsList(
                         viewModel.chatBoxModifier.value = it
                     }
                 }
-                chatBox(item)
+                chatBox(item, navController)
             }
         }
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 fun chatBox(
-    chat: ChatDTO?, viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
+    chat: ChatDTO?,
+    navController: NavHostController,
+    viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     viewModel.chatBoxModifier.value?.let {
         Box(
@@ -709,7 +788,7 @@ fun chatBox(
                     }
             }
 
-            chatNameText(chat)
+            chatNameText(chat, navController)
 
             if (viewModel.chatBadgeCounterModifier.value == null) {
                 Modifier.align(
@@ -719,14 +798,28 @@ fun chatBox(
                 }
             }
             if (chat?.unreadedMessages!! > 0) {
-                msgsCounterBadge(chat.unreadedMessages.toString())
+                msgsCounterBadge(chat.unreadedMessages.toString(), navController)
             }
             var menuExpanded by remember { mutableStateOf(false) }
 
+            Text(
+                text = DateTimeComponents.Format {
+                    hour(); char(':'); minute()
+                }.format {
+                    setTime(
+                        chat.lastMsgSendAt.toInstant(UtcOffset.ZERO)
+                            .toLocalDateTime(TimeZone.currentSystemDefault()).time
+                    )
+                },
+                modifier = Modifier.align(
+                    TopEnd
+                ).padding(6.dp).offset((-20).dp),
+                style = MaterialTheme.typography.labelSmall
+            )
             IconButton(
                 modifier = Modifier.align(
-                    CenterEnd
-                ).padding(6.dp), onClick = {
+                    TopEnd
+                ).size(30.dp).padding(6.dp), onClick = {
                     menuExpanded = !menuExpanded
                 }) {
                 Icon(
@@ -740,7 +833,8 @@ fun chatBox(
                     }
                 }
                 chatSettingsDropdownMenu(
-                    chat, menuExpanded, { value -> menuExpanded = value })
+                    chat, menuExpanded, { value -> menuExpanded = value }, navController
+                )
             }
         }
     }
@@ -749,7 +843,8 @@ fun chatBox(
 @Composable
 fun msgsCounterBadge(
     count: String,
-    viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
+    navController: NavHostController,
+    viewModel: MessagesViewModel = viewModel { MessagesViewModel() },
 ) {
     viewModel.chatBadgeCounterModifier.value?.let {
         Badge(
@@ -780,12 +875,18 @@ fun threadMsgsCounterBadge(
 
 @Composable
 fun chatNameText(
-    chat: ChatDTO?, viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
+    chat: ChatDTO?,
+    navController: NavHostController,
+    viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     viewModel.chatNameTextModifier.value?.let {
+        var lastMsg by remember(chat) { mutableStateOf("") }
+        if (chat?.lastMsgOwner != "") {
+            lastMsg = chat?.lastMsgOwner + ": " + chat?.lastMsgData
+        }
         Text(
             modifier = it,
-            text = "Привет, давно тебя не было в уличных гонках!",
+            text = lastMsg,
             style = MaterialTheme.typography.bodyMedium,
             overflow = TextOverflow.Ellipsis,
             maxLines = 1
@@ -798,6 +899,7 @@ fun chatSettingsDropdownMenu(
     chat: ChatDTO?,
     isMenuExpanded: Boolean,
     onMenuExpand: (Boolean) -> Unit,
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     viewModel.chatSettingsDropdownMenuModifier.value?.let {
@@ -806,7 +908,7 @@ fun chatSettingsDropdownMenu(
                 onMenuExpand(false)
             }) {
             DropdownMenuItem(onClick = {
-                viewModel.deleteChat(chat)
+                viewModel.deleteChat(chat, navController)
             }, text = { Text("Удалить") })
             HorizontalDivider()
             DropdownMenuItem(onClick = { }, text = { Text("Настройки") })
@@ -882,6 +984,10 @@ fun navRail(
                 }
             }, label = { Text("Помощь") })
             NavigationRailItem(selected = false, onClick = {
+                datastore?.saveCookie("savePass", "")
+                datastore?.saveCookie("token", "")
+                datastore?.saveCookie("refreshToken", "")
+                datastore?.saveCookie("userId", "")
                 navController.navigate(PageRoutes.SignInPage.route)
             }, icon = {
                 Icon(
@@ -892,36 +998,80 @@ fun navRail(
     }
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalTime::class)
 @Composable
 fun listDetailsContent(
     scaffoldNavigator: ThreePaneScaffoldNavigator<String>,
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     AnimatedVisibility(
         viewModel.selectedChat.value != null, enter = fadeIn(), exit = fadeOut()
     ) {
         val lazyColumnListState = rememberLazyListState()
-        Scaffold(topBar = {
-            msgsScaffoldTopBar(scaffoldNavigator)
-        }, bottomBar = {
-            msgsScaffoldBottomContent(lazyColumnListState)
-        }) {
-
+        Scaffold(
+            topBar = {
+                msgsScaffoldTopBar(scaffoldNavigator, navController)
+            },
+            bottomBar = {
+                msgsScaffoldBottomContent(lazyColumnListState, navController)
+            },
+        ) {
             if (viewModel.msgsColumnModifier.value == null) {
-                Modifier.padding(it).fillMaxHeight().also {
+                Modifier.padding(it).background(
+                    Color.Transparent
+                ).fillMaxWidth().fillMaxHeight().also {
                     viewModel.msgsColumnModifier.value = it
                 }
             }
-            msgsColumn(lazyColumnListState, scaffoldNavigator)
+            Box {
+                Text(
+                    "Welcome to ShhhChat",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.blur(1.dp).padding(it).offset(2.dp).width(200.dp).align(
+                        TopStart
+                    )
+                )
+                var time by remember {
+                    mutableStateOf(
+                        Clock.System.now()
+                            .toLocalDateTime(TimeZone.currentSystemDefault())
+                    )
+                }
+                time = Clock.System.now()
+                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                Text(
+                    buildAnnotatedString {
+                        append("System information as of ${time.dayOfWeek.name} ${time.month.name} ${time.day} ${time.hour}:${time.minute}:${time.second}\n")
+                        append("Platform ${getPlatform().name}, Client Version: 0.0.1-alpha\n")
+                        append(
+                            "Beginning of development: 13 Oct 2023\n" +
+                                    "\n" +
+                                    "\n" +
+                                    "\n" +
+                                    "\n"
+                        )
+                        append("To disable this message please turn off it in the settings\n")
+                        append("Your data is always safe with us =)\n")
+                        append("Expect more news soon.\n")
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.blur(1.dp).padding(it).offset(2.dp).align(
+                        TopStart
+                    ).padding(0.dp, 100.dp, 10.dp, 0.dp)
+                )
+                msgsColumn(lazyColumnListState, scaffoldNavigator, navController)
+            }
+
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun msgsScaffoldBottomContent(
     lazyColumnListState: LazyListState,
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     val scope = rememberCoroutineScope()
@@ -1115,6 +1265,37 @@ fun msgsScaffoldBottomContent(
                 }
             }
         }
+        androidx.compose.animation.AnimatedVisibility(viewModel.editingMode.value) {
+            ElevatedCard {
+                Box(Modifier.fillMaxWidth().height(50.dp)) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = "Edit",
+                        modifier = Modifier.align(CenterStart).padding(15.dp, 0.dp).size(25.dp)
+                    )
+                    Text(
+                        "Редактирование",
+                        modifier = Modifier.align(TopStart).offset(50.dp, 0.dp),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        viewModel.editingMsgOrigText.value,
+                        modifier = Modifier.align(CenterStart).basicMarquee().offset(50.dp, 0.dp)
+                            .width(500.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1
+                    )
+                    IconButton(modifier = Modifier.align(CenterEnd).size(25.dp), onClick = {
+                        viewModel.editingMode.value = false
+                    }) {
+                        Icon(
+                            Icons.Filled.Cancel,
+                            contentDescription = "Cancel editing"
+                        )
+                    }
+                }
+            }
+        }
         Row {
             IconButton(
                 modifier = Modifier.background(Color.Transparent).align(
@@ -1133,11 +1314,12 @@ fun msgsScaffoldBottomContent(
                     when {
                         (!it.isCtrlPressed && it.key == Key.Enter && it.type == KeyEventType.KeyDown) -> {
                             if (viewModel.editingMode.value) {
-                                viewModel.updateMessage()
+                                viewModel.updateMessage(navController)
                             } else {
                                 viewModel.sendMessage(
                                     lazyColumnListState,
-                                    selectedFiles
+                                    selectedFiles,
+                                    navController
                                 )
                             }
                             true
@@ -1153,7 +1335,7 @@ fun msgsScaffoldBottomContent(
                 },
                 value = viewModel.message.value,
                 onValueChange = { viewModel.message.value = it },
-                placeholder = { Text("Введите сообщение!") },
+                placeholder = { Text("${username}@ssshchat:~#") },
                 maxLines = 3,
             )
             val emojiSelector = remember { mutableStateOf(false) }
@@ -1182,11 +1364,12 @@ fun msgsScaffoldBottomContent(
                     CenterVertically
                 ), onClick = {
                     if (viewModel.editingMode.value) {
-                        viewModel.updateMessage()
+                        viewModel.updateMessage(navController)
                     } else {
                         viewModel.sendMessage(
                             lazyColumnListState,
-                            selectedFiles
+                            selectedFiles,
+                            navController
                         )
                     }
                 }) {
@@ -1198,50 +1381,178 @@ fun msgsScaffoldBottomContent(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class,
+    ExperimentalUuidApi::class
+)
 @Composable
 fun msgsScaffoldTopBar(
     scaffoldNavigator: ThreePaneScaffoldNavigator<String>,
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
-
     val scope = rememberCoroutineScope()
-    TopAppBar(title = {
-        Row {
-            Text(
-                viewModel.selectedChat.value?.name ?: "Загрузка..."
-            )
-            when (viewModel.detailPaneState.value) {
-                UiState.Loading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(
-                            20.dp
-                        )
+    var visible by remember { mutableStateOf(false) }
+    AnimatedVisibility(visible) {
+        BasicAlertDialog(
+            onDismissRequest = { visible = false },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = true
+            ),
+            modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.9f)
+        ) { Button(onClick = {}) { Text("Chat dialog") } }
+    }
+    val tooltipState = rememberTooltipState(initialIsVisible = false, isPersistent = true)
+    val chatNameInteractionSource = remember { MutableInteractionSource() }
+    val isChatNameHovered by chatNameInteractionSource.collectIsHoveredAsState()
+    val tooltipInteractionSource = remember { MutableInteractionSource() }
+    val tooltipIsHovered by tooltipInteractionSource.collectIsHoveredAsState()
+    if (isChatNameHovered || tooltipIsHovered) {
+        scope.launch { tooltipState.show(MutatePriority.PreventUserInput) }
+    }
+    remember {
+        viewModel.showChatProfiles(viewModel.selectedChat.value, navController)
+    }
+    TopAppBar(
+        modifier = Modifier.height(50.dp).clickable {
+            visible = true
+        },
+        title = {
+            Column {
+                Text(
+                    buildAnnotatedString {
+                        append((viewModel.selectedChat.value?.name ?: "Загрузка...") + "\n")
+                    },
+                    modifier = Modifier
+                        .widthIn(100.dp, 200.dp),
+                    maxLines = 1
+                )
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(10.dp),
+                    tooltip = {
+                        RichTooltip(
+                            modifier = Modifier.hoverable(tooltipInteractionSource),
+                            title = {
+                                Text(
+                                    "Список пользователей",
+                                    modifier = Modifier.basicMarquee()
+                                )
+                            },
+                            action = {},
+                            caretSize = DpSize(32.dp, 16.dp)
+                        ) {
+                            remember {
+                                viewModel.showChatProfiles(
+                                    viewModel.selectedChat.value,
+                                    navController
+                                )
+                            }
+                            if (viewModel.chatProfiles.size > 0) {
+                                LazyColumn(
+                                    modifier = Modifier.width(150.dp),
+                                ) {
+                                    items(
+                                        items = viewModel.chatProfiles, key = { profile ->
+                                            profile?.id ?: 0
+                                        }) { profile ->
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RectangleShape,
+                                        ) {
+                                            Row(modifier = Modifier.fillMaxWidth()) {
+                                                Column(
+                                                    Modifier.align(
+                                                        Alignment.Top
+                                                    ).weight(0.9f).padding(5.dp)
+                                                ) {
+                                                    Text(
+                                                        profile?.login ?: "Downloading login...",
+                                                        modifier = Modifier
+                                                            .basicMarquee(),
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+                                                    Text(
+                                                        profile?.role ?: "Undefined",
+                                                        modifier = Modifier.padding(1.dp),
+                                                        style = MaterialTheme.typography.labelSmall
+                                                    )
+                                                }
+                                                println(profile?.role)
+                                                Canvas(
+                                                    modifier = Modifier.padding(10.dp).align(
+                                                        CenterVertically
+                                                    )
+                                                ) {
+                                                    scale(scaleX = 1f, scaleY = 1f) {
+                                                        if (profile?.status == "ONLINE") {
+                                                            drawCircle(
+                                                                Color.Green,
+                                                                radius = 4.dp.toPx()
+                                                            )
+                                                        } else {
+                                                            drawCircle(
+                                                                Color.Red,
+                                                                radius = 4.dp.toPx()
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    state = tooltipState
+                ) {
+                    Text(
+                        buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    color = Color.Blue,
+                                    fontSize = MaterialTheme.typography.labelMedium.fontSize
+                                )
+                            ) {
+                                append("${viewModel.selectedChatMembers.value} участников, ${viewModel.selectedChatMembersOnline.value} в сети")
+                            }
+                        },
+                        modifier = Modifier.hoverable(chatNameInteractionSource)
+                            .widthIn(100.dp, 200.dp),
+                        maxLines = 1
                     )
                 }
+                when (viewModel.detailPaneState.value) {
+                    UiState.Loading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(
+                                20.dp
+                            )
+                        )
+                    }
 
-                UiState.Loaded -> {
+                    UiState.Loaded -> {
 
+                    }
                 }
             }
-        }
-    }, navigationIcon = {
-        IconButton(onClick = {
-            viewModel.selectedMsg.value = null
-            viewModel.fromDetailToList.value = true
-            viewModel.navigateToChats(scope, scaffoldNavigator)
-        }) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад"
-            )
-        }
-    }, actions = {
-        IconButton(onClick = {}) {
-            Icon(
-                Icons.Default.MoreVert, contentDescription = "Настройки чата"
-            )
-        }
-    })
+        }, navigationIcon = {
+            IconButton(onClick = {
+                viewModel.selectedMsg.value = null
+                viewModel.fromDetailToList.value = true
+                viewModel.navigateToChats(scope, scaffoldNavigator)
+            }) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад"
+                )
+            }
+        }, actions = {
+            IconButton(onClick = {}) {
+                Icon(
+                    Icons.Default.MoreVert, contentDescription = "Настройки чата"
+                )
+            }
+        })
 }
 
 
@@ -1250,12 +1561,13 @@ fun msgsScaffoldTopBar(
 fun msgsColumn(
     lazyColumnListState: LazyListState,
     scaffoldNavigator: ThreePaneScaffoldNavigator<String>,
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     viewModel.msgsColumnModifier.value?.let {
         val scope = rememberCoroutineScope()
         remember(viewModel.selectedChat.value?.id) {
-            viewModel.subscribeToMessagesUpdates(lazyColumnListState)
+            viewModel.subscribeToMessagesUpdates(lazyColumnListState, navController)
         }
         LazyColumn(
             modifier = it, reverseLayout = true, state = lazyColumnListState
@@ -1296,12 +1608,13 @@ fun msgsColumn(
                     msgBox(
                         item,
                         msgMenuExpanded.value,
-                        { value -> msgMenuExpanded.value = value })
+                        { value -> msgMenuExpanded.value = value }, navController
+                    )
 
                     if (item?.filesUrls?.size!! > 0) {
                         LazyColumn(
                             modifier = Modifier.heightIn(50.dp, 600.dp).padding(0.dp, 5.dp)
-                                .width((item.message.length * 14).dp)
+                                .width(((item.message.length + 10) * 16).dp)
                         ) {
                             items(
                                 items = item.filesUrls, key = { file ->
@@ -1326,7 +1639,7 @@ fun msgsColumn(
                                     Column {
                                         Text(
                                             msg.name,
-                                            modifier = Modifier.width((item.message.length * 14).dp)
+                                            modifier = Modifier.width(((item.message.length + 10) * 16).dp)
                                                 .padding(2.dp),
                                             style = MaterialTheme.typography.bodySmall,
                                             maxLines = 1,
@@ -1342,7 +1655,7 @@ fun msgsColumn(
                                             )
                                             Text(
                                                 msg.size.toString() + " байт",
-                                                modifier = Modifier.width((item.message.length * 16).dp)
+                                                modifier = Modifier.width(((item.message.length + 10) * 16).dp)
                                                     .padding(2.dp),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 maxLines = 1
@@ -1355,17 +1668,20 @@ fun msgsColumn(
                     }
                     HorizontalDivider(
                         modifier = Modifier.widthIn(200.dp, 600.dp)
-                            .width((item.message.length * 16).dp),
+                            .width(((item.message.length + 10) * 16).dp),
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     TextButton(
                         modifier = Modifier.widthIn(200.dp, 600.dp)
-                            .width((item.message.length * 14).dp)
+                            .width(((item.message.length + 10) * 16).dp)
                             .requiredHeight(40.dp),
                         onClick = {
                             scope.launch {
                                 viewModel.selectedMsg.value = item
-                                viewModel.showChatThreadMessages(viewModel.selectedChat.value)
+                                viewModel.showChatThreadMessages(
+                                    viewModel.selectedChat.value,
+                                    navController
+                                )
                                 scaffoldNavigator.navigateTo(
                                     ListDetailPaneScaffoldRole.Extra
                                 )
@@ -1416,11 +1732,12 @@ fun msgsColumn(
     }
 }
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalMaterial3Api::class)
 @Composable
 fun msgBox(
     message: MessageDTO?, msgMenuExpanded: Boolean,
     onMenuExpand: (Boolean) -> Unit,
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     viewModel.msgBoxModifier.value?.let {
@@ -1438,13 +1755,13 @@ fun msgBox(
             )
 
             if (viewModel.msgSenderTextModifier.value == null) {
-                Modifier.align(TopStart).offset(50.dp, 0.dp).also {
+                Modifier.align(TopStart).width(100.dp).basicMarquee().offset(50.dp, 0.dp).also {
                     viewModel.msgSenderTextModifier.value = it
                 }
             }
             msgSenderText(message?.sender)
             Text(
-                modifier = Modifier.align(TopStart).offset(120.dp, 3.dp).width(80.dp),
+                modifier = Modifier.align(TopStart).offset(150.dp, 3.dp).width(80.dp),
                 text = DateTimeComponents.Format {
                     hour(); char(':'); minute()
                     char(' ')
@@ -1473,14 +1790,23 @@ fun msgBox(
                 maxLines = 1
             )
 
-            Text(
-                modifier = Modifier.align(TopStart).offset(190.dp, 3.dp),
-                text = if (message?.edited == null) "" else "(edited)",
-                style = MaterialTheme.typography.labelMedium,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = 1,
-                color = MaterialTheme.colorScheme.tertiary
-            )
+            if (message?.edited != null) {
+                TooltipBox(
+                    modifier = Modifier.align(TopStart).offset(210.dp, 3.dp).padding(2.dp, 0.dp)
+                        .size(15.dp),
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(5.dp),
+                    tooltip = {
+                        PlainTooltip(Modifier.offset(150.dp)) { Text("Сообщение отредактировано") }
+                    },
+                    state = rememberTooltipState()
+                ) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = "Edited icon",
+                        tint = Color(MaterialTheme.colorScheme.tertiary.value)
+                    )
+                }
+            }
 
             if (viewModel.msgTextModifier.value == null) {
                 Modifier.align(
@@ -1503,7 +1829,8 @@ fun msgBox(
             }
             msgSettingsDropdownMenu(
                 message,
-                msgMenuExpanded, onMenuExpand
+                msgMenuExpanded, onMenuExpand,
+                navController
             )
         }
     }
@@ -1546,6 +1873,7 @@ fun msgSettingsDropdownMenu(
     message: MessageDTO?,
     isMenuExpanded: Boolean,
     onMenuExpand: (Boolean) -> Unit,
+    navController: NavHostController,
     viewModel: MessagesViewModel = viewModel { MessagesViewModel() }
 ) {
     viewModel.msgSettingsDropdownMenuModifier.value?.let {
@@ -1553,7 +1881,7 @@ fun msgSettingsDropdownMenu(
             modifier = it, expanded = isMenuExpanded, onDismissRequest = {
                 onMenuExpand(false)
             }) {
-            DropdownMenuItem(onClick = { }, text = { Text("Переслать") })
+            DropdownMenuItem(onClick = { onMenuExpand(false) }, text = { Text("Переслать") })
             DropdownMenuItem(onClick = {
                 if (message != null) {
                     if (message.messageType == "REGULAR") {
@@ -1561,11 +1889,13 @@ fun msgSettingsDropdownMenu(
                         viewModel.msgDTO.value.sendAt = message.sendAt
                         viewModel.msgDTO.value.repliedToId = message.repliedToId
                         viewModel.msgDTO.value.messageType = message.messageType
+                        viewModel.msgDTO.value.sender = message.sender
                         viewModel.msgDTO.value.threadParentMsgId = message.threadParentMsgId
                         viewModel.msgDTO.value.edited =
                             Clock.System.now().toLocalDateTime(TimeZone.UTC)
-                        viewModel.editingMode.value = true
                         viewModel.message.value = message.message
+                        viewModel.editingMsgOrigText.value = message.message
+                        viewModel.editingMode.value = true
                     } else if (message.messageType == "THREAD") {
                         viewModel.threadMsgDTO.value.id = message.id
                         viewModel.threadMsgDTO.value.sendAt = message.sendAt
@@ -1574,10 +1904,12 @@ fun msgSettingsDropdownMenu(
                         viewModel.threadMsgDTO.value.threadParentMsgId = message.threadParentMsgId
                         viewModel.threadMsgDTO.value.edited =
                             Clock.System.now().toLocalDateTime(TimeZone.UTC)
-                        viewModel.threadEditingMode.value = true
+                        viewModel.editingThreadMsgOrigText.value = message.message
                         viewModel.threadMessage.value = message.message
+                        viewModel.threadEditingMode.value = true
                     }
                 }
+                onMenuExpand(false)
             }, text = { Text("Редактировать") })
             DropdownMenuItem(onClick = {
                 if (message != null) {
@@ -1587,7 +1919,8 @@ fun msgSettingsDropdownMenu(
                     viewModel.msgDTO.value.messageType = message.messageType
                     viewModel.msgDTO.value.threadParentMsgId = message.threadParentMsgId
                 }
-                viewModel.deleteMessage()
+                viewModel.deleteMessage(navController)
+                onMenuExpand(false)
             }, text = { Text("Удалить") })
         }
     }

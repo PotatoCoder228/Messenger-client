@@ -32,7 +32,7 @@ class RegistrationViewModel : ViewModel() {
     val fieldsTitleModifier: MutableState<Modifier?> = mutableStateOf(null)
     val cardBoxModifier: MutableState<Modifier?> = mutableStateOf(null)
     val topBarModifier: MutableState<Modifier?> = mutableStateOf(null)
-
+    var approvalDataProcessingChecked = mutableStateOf(false)
 
     val onEnterAction = { it: KeyEvent, navController: NavHostController ->
         when {
