@@ -298,6 +298,30 @@ class MessagesPageRequests {
             }
         }
 
+        suspend fun getMessageFileRequest(
+            url: String,
+            onLoad: (ByteArray) -> Unit,
+            snackbarHostState: SnackbarHostState,
+            navController: NavHostController
+        ) {
+            try {
+                val httpResponse: HttpResponse =
+                    httpClient.get("$httpHost${url}") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        contentType(ContentType.Application.Json)
+                    }
+                if (httpResponse.status.value in 200..299) {
+                    onLoad(httpResponse.body<ByteArray>())
+                } else {
+                    errorAction(httpResponse, snackbarHostState, navController)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState, navController)
+            }
+        }
+
         @OptIn(ExperimentalUuidApi::class)
         suspend fun getChatMessagesRequest(
             chatDTO: ChatDTO?,

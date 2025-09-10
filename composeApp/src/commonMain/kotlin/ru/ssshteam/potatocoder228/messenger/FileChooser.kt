@@ -6,4 +6,6 @@ import ru.ssshteam.potatocoder228.messenger.internal.File
 expect class FileChooser() {
     fun selectFile():
             SnapshotStateList<File>
+
+    fun selectDownloadingFilepath(filename: String = ""): String
 }

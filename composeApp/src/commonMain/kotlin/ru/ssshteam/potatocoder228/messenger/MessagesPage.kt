@@ -150,12 +150,14 @@ import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -169,10 +171,15 @@ import kotlinx.datetime.format.char
 import kotlinx.datetime.format.format
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.io.Buffer
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
 import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
 import ru.ssshteam.potatocoder228.messenger.internal.File
+import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests
 import ru.ssshteam.potatocoder228.messenger.viewmodels.MessagesViewModel
+import kotlin.math.pow
 import kotlin.time.Clock
 import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
@@ -1360,7 +1367,7 @@ fun msgsScaffoldBottomContent(
                 }
             }
             IconButton(
-                modifier = Modifier.background(Color.Transparent).align(
+                modifier = Modifier.align(
                     CenterVertically
                 ), onClick = {
                     if (viewModel.editingMode.value) {
@@ -1421,7 +1428,15 @@ fun msgsScaffoldTopBar(
             Column {
                 Text(
                     buildAnnotatedString {
-                        append((viewModel.selectedChat.value?.name ?: "Загрузка...") + "\n")
+                        withStyle(
+                            SpanStyle(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontStyle = MaterialTheme.typography.bodyLarge.fontStyle,
+                                fontSize = MaterialTheme.typography.bodyLarge.fontSize
+                            )
+                        ) {
+                            append((viewModel.selectedChat.value?.name ?: "Загрузка...") + "\n")
+                        }
                     },
                     modifier = Modifier
                         .widthIn(100.dp, 200.dp),
@@ -1510,8 +1525,9 @@ fun msgsScaffoldTopBar(
                         buildAnnotatedString {
                             withStyle(
                                 SpanStyle(
-                                    color = Color.Blue,
-                                    fontSize = MaterialTheme.typography.labelMedium.fontSize
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                    baselineShift = BaselineShift(-0.6f)
                                 )
                             ) {
                                 append("${viewModel.selectedChatMembers.value} участников, ${viewModel.selectedChatMembersOnline.value} в сети")
@@ -1555,6 +1571,24 @@ fun msgsScaffoldTopBar(
         })
 }
 
+private var KB = 1024.0f
+private var MB = KB.pow(2)
+private var GB = KB.pow(3)
+private var TB = KB.pow(4)
+private var PB = KB.pow(5)
+fun formatSize(v: Long): String {
+    return if (v < MB) {
+        "${(v / KB).fastRoundToInt()} KB"
+    } else if (v < GB) {
+        "${(v / MB).fastRoundToInt()} MB"
+    } else if (v < TB) {
+        "${(v / GB).fastRoundToInt()} GB"
+    } else if (v < PB) {
+        "${(v / TB).fastRoundToInt()} TB"
+    } else {
+        "$v bytes"
+    }
+}
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalUuidApi::class)
 @Composable
@@ -1620,9 +1654,23 @@ fun msgsColumn(
                                 items = item.filesUrls, key = { file ->
                                     file.id
                                 }) { msg ->
+                                println(msg.url)
                                 Row {
                                     IconButton(
-                                        onClick = {},
+                                        onClick = {
+                                            val path = fileChooser.selectDownloadingFilepath(msg.name)
+                                            scope.launch {
+                                                val fileBytes = Buffer()
+                                                MessagesPageRequests.getMessageFileRequest(
+                                                    msg.url,
+                                                    { bytes -> fileBytes.write(bytes) },
+                                                    viewModel.mainSnackbarHostState.value,
+                                                    navController
+                                                )
+                                                val source = SystemFileSystem.sink(Path(path))
+                                                source.write(fileBytes, fileBytes.size)
+                                            }
+                                        },
                                         colors = IconButtonColors(
                                             MaterialTheme.colorScheme.secondaryContainer,
                                             MaterialTheme.colorScheme.onSecondaryContainer,
@@ -1645,7 +1693,7 @@ fun msgsColumn(
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
-                                        Row(Modifier.width(50.dp)) {
+                                        Row(Modifier.width(65.dp)) {
                                             Text(
                                                 msg.contentType,
                                                 modifier = Modifier
@@ -1654,7 +1702,7 @@ fun msgsColumn(
                                                 maxLines = 1
                                             )
                                             Text(
-                                                msg.size.toString() + " байт",
+                                                formatSize(msg.size),
                                                 modifier = Modifier.width(((item.message.length + 10) * 16).dp)
                                                     .padding(2.dp),
                                                 style = MaterialTheme.typography.labelSmall,
@@ -1761,7 +1809,7 @@ fun msgBox(
             }
             msgSenderText(message?.sender)
             Text(
-                modifier = Modifier.align(TopStart).offset(150.dp, 3.dp).width(80.dp),
+                modifier = Modifier.align(TopEnd).offset(0.dp, 4.dp).width(80.dp),
                 text = DateTimeComponents.Format {
                     hour(); char(':'); minute()
                     char(' ')
