@@ -21,6 +21,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.hildan.krossbow.stomp.StompSession
 import org.hildan.krossbow.stomp.conversions.kxserialization.json.withJsonConversions
@@ -34,6 +35,7 @@ import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
 import ru.ssshteam.potatocoder228.messenger.dto.NotificationDTO
 import ru.ssshteam.potatocoder228.messenger.dto.OperationDTO
 import ru.ssshteam.potatocoder228.messenger.dto.UserInChatDTO
+import ru.ssshteam.potatocoder228.messenger.dto.internal.FileView
 import ru.ssshteam.potatocoder228.messenger.internal.File
 import ru.ssshteam.potatocoder228.messenger.json
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests
@@ -74,6 +76,11 @@ class MessagesViewModel : ViewModel() {
     val chats = mutableStateListOf<ChatDTO?>()
 
     val navRailVisible = mutableStateOf(false)
+
+    val userProfileVisible = mutableStateOf(false)
+
+    @OptIn(ExperimentalUuidApi::class)
+    val profileId = mutableStateOf(Uuid.NIL)
 
     val mainSnackbarHostState = mutableStateOf(SnackbarHostState())
     val messages = mutableStateListOf<MessageDTO?>()
@@ -249,19 +256,35 @@ class MessagesViewModel : ViewModel() {
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    fun sendThreadMessage(lazyColumnListState: LazyListState, navController: NavHostController) {
+    fun sendThreadMessage(
+        lazyColumnListState: LazyListState,
+        selectedFiles: MutableList<File>,
+        navController: NavHostController
+    ) {
         viewModelScope.launch {
             threadMsgDTO.value = MessageDTO()
             threadMsgDTO.value.message = threadMessage.value
             threadMsgDTO.value.messageType = "THREAD"
             threadMsgDTO.value.threadParentMsgId = selectedMsg.value!!.id
-            MessagesPageRequests.sendThreadMessageRequest(
+            val addedMessageDTO = MessagesPageRequests.sendThreadMessageRequest(
                 selectedChat.value,
                 threadMsgDTO.value,
                 { item -> },
                 mainSnackbarHostState.value,
                 navController
             )
+
+            if (addedMessageDTO.id != Uuid.NIL && selectedFiles.size != 0) {
+                sendMessageFile(
+                    chatId = selectedChat.value?.id!!.toString(),
+                    messageId = addedMessageDTO.id.toString(),
+                    files = selectedFiles,
+                    navController
+                )
+            } else {
+                println("uuid is null! ${addedMessageDTO.id}")
+            }
+            selectedFiles.clear()
             lazyColumnListState.scrollToItem(threadMessages.size - 1)
             threadMessage.value = ""
         }
@@ -285,6 +308,9 @@ class MessagesViewModel : ViewModel() {
             }
             MessagesPageRequests.getThreadMessagesRequest(
                 chatDTO, selectedMsg.value, mainSnackbarHostState.value, { message ->
+                    for (file in message.filesUrls) {
+                        println(file.name)
+                    }
                     threadMessages.add(
                         message
                     )
@@ -660,6 +686,142 @@ class MessagesViewModel : ViewModel() {
                                                         )
                                                     ),
                                                 )
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+
+                                "NEW_SEND_FILE" -> {
+                                    println("NEW_SEND_FILE")
+                                    try {
+                                        val jsonElement = Json.parseToJsonElement(stompMessage.data)
+                                        for (view in jsonElement.jsonArray) {
+                                            val first = messages.withIndex().firstOrNull {
+                                                val id = view.jsonObject["messageId"].toString()
+                                                (id.subSequence(
+                                                    1,
+                                                    id.length - 1
+                                                )) == (it.value?.id.toString())
+                                            }
+                                            if (first != null) {
+                                                val id =
+                                                    view.jsonObject["id"].toString()
+                                                val messageId =
+                                                    view.jsonObject["messageId"].toString()
+                                                val name =
+                                                    view.jsonObject["name"].toString()
+                                                val contentType =
+                                                    view.jsonObject["contentType"].toString()
+                                                val size =
+                                                    view.jsonObject["size"].toString()
+                                                val url =
+                                                    view.jsonObject["url"].toString()
+                                                messages[first.index] =
+                                                    messages[first.index]?.copy(
+                                                        filesUrls = messages[first.index]!!.filesUrls.plusElement(
+                                                            FileView(
+                                                                Uuid.parse(
+                                                                    id.subSequence(
+                                                                        1,
+                                                                        id.length - 1
+                                                                    ).toString()
+                                                                ),
+                                                                Uuid.parse(
+                                                                    messageId.subSequence(
+                                                                        1,
+                                                                        messageId.length - 1
+                                                                    ).toString()
+                                                                ),
+                                                                name.subSequence(
+                                                                    1,
+                                                                    name.length - 1
+                                                                ).toString(),
+                                                                contentType.subSequence(
+                                                                    1,
+                                                                    contentType.length - 1
+                                                                ).toString(),
+                                                                size.subSequence(
+                                                                    1,
+                                                                    size.length - 1
+                                                                ).toString().toLong(),
+                                                                url.subSequence(
+                                                                    1,
+                                                                    url.length - 1
+                                                                ).toString()
+                                                            )
+                                                        )
+                                                    )
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+
+                                "NEW_SEND_THREAD_FILE" -> {
+                                    println("NEW_SEND_THREAD_FILE")
+                                    try {
+                                        val jsonElement = Json.parseToJsonElement(stompMessage.data)
+                                        for (view in jsonElement.jsonArray) {
+                                            val first = threadMessages.withIndex().firstOrNull {
+                                                val id = view.jsonObject["messageId"].toString()
+                                                (id.subSequence(
+                                                    1,
+                                                    id.length - 1
+                                                )) == (it.value?.id.toString())
+                                            }
+                                            if (first != null) {
+                                                val id =
+                                                    view.jsonObject["id"].toString()
+                                                val messageId =
+                                                    view.jsonObject["messageId"].toString()
+                                                val name =
+                                                    view.jsonObject["name"].toString()
+                                                val contentType =
+                                                    view.jsonObject["contentType"].toString()
+                                                val size =
+                                                    view.jsonObject["size"].toString()
+                                                val url =
+                                                    view.jsonObject["url"].toString()
+                                                if (threadMessages[first.index] != null) {
+                                                    threadMessages[first.index] =
+                                                        threadMessages[first.index]?.copy(
+                                                            filesUrls = threadMessages[first.index]!!.filesUrls.plusElement(
+                                                                FileView(
+                                                                    Uuid.parse(
+                                                                        id.subSequence(
+                                                                            1,
+                                                                            id.length - 1
+                                                                        ).toString()
+                                                                    ),
+                                                                    Uuid.parse(
+                                                                        messageId.subSequence(
+                                                                            1,
+                                                                            messageId.length - 1
+                                                                        ).toString()
+                                                                    ),
+                                                                    name.subSequence(
+                                                                        1,
+                                                                        name.length - 1
+                                                                    ).toString(),
+                                                                    contentType.subSequence(
+                                                                        1,
+                                                                        contentType.length - 1
+                                                                    ).toString(),
+                                                                    size.subSequence(
+                                                                        1,
+                                                                        size.length - 1
+                                                                    ).toString().toLong(),
+                                                                    url.subSequence(
+                                                                        1,
+                                                                        url.length - 1
+                                                                    ).toString()
+                                                                )
+                                                            )
+                                                        )
+                                                }
+                                            }
                                         }
                                     } catch (e: Exception) {
                                         e.printStackTrace()

@@ -11,6 +11,7 @@ import kotlin.uuid.Uuid
 @JsonIgnoreUnknownKeys
 data class FileView @OptIn(ExperimentalUuidApi::class) constructor(
     val id: Uuid = Uuid.NIL,
+    val messageId: Uuid = Uuid.NIL,
     val name: String = "",
     val contentType: String = "",
     val size: Long = 0,

@@ -19,11 +19,14 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
@@ -60,6 +63,7 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Css
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilePresent
 import androidx.compose.material.icons.filled.Gif
@@ -87,6 +91,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -121,7 +126,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.BottomCenter
@@ -145,6 +149,7 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.SpanStyle
@@ -163,6 +168,10 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+import coil3.request.ImageRequest
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
@@ -171,13 +180,12 @@ import kotlinx.datetime.format.char
 import kotlinx.datetime.format.format
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.io.Buffer
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
 import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
 import ru.ssshteam.potatocoder228.messenger.internal.File
-import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests
+import ru.ssshteam.potatocoder228.messenger.requests.getMessageFileRequest
 import ru.ssshteam.potatocoder228.messenger.viewmodels.MessagesViewModel
 import kotlin.math.pow
 import kotlin.time.Clock
@@ -305,9 +313,216 @@ fun MessagesPage(
                                     }
                                 })
                             }, bottomBar = {
+                                var zoomed by remember { mutableStateOf(false) }
+                                var page by remember { mutableIntStateOf(0) }
+                                val iconsMapper = remember {
+                                    mutableMapOf(
+                                        "html" to Icons.Default.Html,
+                                        "mp3" to Icons.Default._3mp,
+                                        "js" to Icons.Default.Javascript,
+                                        "css" to Icons.Default.Css,
+                                        "raw" to Icons.Default.RawOn,
+                                        "gif" to Icons.Default.Gif,
+                                        "pdf" to Icons.Default.Book
+                                    )
+                                }
                                 val selectedFiles =
                                     remember { mutableStateListOf<File>() }
+                                AnimatedVisibility(zoomed) {
+                                    BasicAlertDialog(
+                                        onDismissRequest = { zoomed = false },
+                                        properties = DialogProperties(
+                                            usePlatformDefaultWidth = false
+                                        ),
+                                        modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.9f)
+                                            .imePadding()
+                                    ) {
+                                        val pagerState = rememberPagerState(
+                                            initialPage = page,
+                                            pageCount = {
+                                                selectedFiles.size
+                                            })
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                                            horizontalAlignment = CenterHorizontally
+                                        ) {
+                                            Text(
+                                                modifier = Modifier.fillMaxWidth(0.9f)
+                                                    .padding(10.dp),
+                                                text = selectedFiles[pagerState.currentPage].filename,
+                                                maxLines = 1,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                textAlign = TextAlign.Center
+                                            )
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth(0.9f)
+                                                    .fillMaxHeight(0.9f),
+                                                contentAlignment = Center
+                                            ) {
+                                                HorizontalPager(
+                                                    state = pagerState,
+                                                    modifier = Modifier.align(Center)
+                                                ) { page ->
+                                                    if (selectedFiles[page].extension != "png" && selectedFiles[page].extension != "jpg" && selectedFiles[page].extension != "jpeg") {
+                                                        Icon(
+                                                            imageVector = when (val icon =
+                                                                iconsMapper[selectedFiles[page].extension]) {
+                                                                null -> Icons.Default.FilePresent
+                                                                else -> icon
+                                                            },
+                                                            contentDescription = "Document",
+                                                            modifier = Modifier
+                                                                .clip(CircleShape),
+                                                            tint = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    } else {
+                                                        AsyncImage(
+                                                            selectedFiles[page].uri,
+                                                            null,
+                                                            modifier = Modifier.align(Center)
+                                                                .fillMaxWidth().fillMaxHeight(),
+                                                            alignment = Center
+                                                        )
+                                                    }
+                                                }
+                                                IconButton(
+                                                    modifier = Modifier.align(CenterStart)
+                                                        .size(75.dp), onClick = {
+                                                        scope.launch {
+                                                            pagerState.scrollToPage(if (pagerState.currentPage - 1 >= 0) pagerState.currentPage - 1 else pagerState.pageCount - 1)
+                                                        }
+                                                    }) {
+                                                    Icon(
+                                                        Icons.AutoMirrored.Default.ArrowLeft,
+                                                        contentDescription = "Назад"
+                                                    )
+                                                }
+                                                IconButton(
+                                                    modifier = Modifier.align(CenterEnd)
+                                                        .size(75.dp), onClick = {
+                                                        scope.launch {
+                                                            pagerState.scrollToPage(if (pagerState.currentPage + 1 < pagerState.pageCount) pagerState.currentPage + 1 else 0)
+                                                        }
+                                                    }) {
+                                                    Icon(
+                                                        Icons.AutoMirrored.Default.ArrowRight,
+                                                        contentDescription = "Вперёд"
+                                                    )
+                                                }
+                                                Row(
+                                                    Modifier
+                                                        .wrapContentWidth()
+                                                        .padding(bottom = 8.dp).align(BottomCenter),
+                                                    horizontalArrangement = Arrangement.Center
+                                                ) {
+                                                    repeat(pagerState.pageCount) { iteration ->
+                                                        val color =
+                                                            if (pagerState.currentPage == iteration) Color.DarkGray else Color.LightGray
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .padding(2.dp)
+                                                                .clip(CircleShape)
+                                                                .background(color)
+                                                                .size(16.dp).clickable(
+                                                                    onClick = {
+                                                                        scope.launch {
+                                                                            pagerState.scrollToPage(
+                                                                                iteration
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                )
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 Column {
+                                    Row {
+                                        LazyRow {
+                                            items(selectedFiles) { file ->
+                                                ElevatedCard(
+                                                    modifier = Modifier
+                                                        .wrapContentWidth().wrapContentHeight()
+                                                ) {
+                                                    BoxWithConstraints(
+                                                        modifier = Modifier
+                                                            .width(200.dp)
+                                                    ) {
+                                                        if (file.extension != "png" && file.extension != "jpg" && file.extension != "jpeg") {
+                                                            Icon(
+                                                                imageVector = when (val icon =
+                                                                    iconsMapper[file.extension]) {
+                                                                    null -> Icons.Default.FilePresent
+                                                                    else -> icon
+                                                                },
+                                                                contentDescription = "Document",
+                                                                modifier = Modifier.size(
+                                                                    50.dp
+                                                                ).clip(CircleShape)
+                                                                    .align(TopStart),
+                                                                tint = MaterialTheme.colorScheme.primary
+                                                            )
+                                                        } else {
+                                                            IconButton(
+                                                                modifier = Modifier.size(50.dp),
+                                                                onClick = {
+                                                                    zoomed = true
+                                                                    page =
+                                                                        selectedFiles.indexOf(file)
+                                                                }) {
+                                                                AsyncImage(
+                                                                    file.uri,
+                                                                    null,
+                                                                    modifier = Modifier.size(
+                                                                        50.dp
+                                                                    ).clip(CircleShape)
+                                                                        .align(TopStart),
+                                                                    contentScale = ContentScale.Crop
+                                                                )
+                                                            }
+                                                        }
+                                                        Text(
+                                                            modifier = Modifier.align(TopStart)
+                                                                .offset(55.dp, 3.dp)
+                                                                .width(120.dp),
+                                                            text = file.filename,
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            maxLines = 1,
+                                                            color = MaterialTheme.colorScheme.primary
+                                                        )
+
+                                                        Text(
+                                                            modifier = Modifier.align(CenterStart)
+                                                                .offset(55.dp, 10.dp)
+                                                                .width(120.dp),
+                                                            text = file.extension,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            maxLines = 1,
+                                                            color = MaterialTheme.colorScheme.primary
+                                                        )
+                                                        IconButton(
+                                                            modifier = Modifier.align(TopEnd)
+                                                                .size(20.dp).padding(2.dp),
+                                                            onClick = {
+                                                                selectedFiles.remove(file)
+                                                            }
+                                                        ) {
+                                                            Icon(
+                                                                Icons.Default.Close,
+                                                                contentDescription = "Открепить документ"
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                     androidx.compose.animation.AnimatedVisibility(viewModel.threadEditingMode.value) {
                                         ElevatedCard {
                                             Box(Modifier.fillMaxWidth().height(50.dp)) {
@@ -350,7 +565,9 @@ fun MessagesPage(
                                                 CenterVertically
                                             ), onClick = {
                                                 println("Choose file")
-                                                selectedFiles.addAll(fileChooser.selectFile())
+                                                scope.launch {
+                                                    selectedFiles.addAll(fileChooser!!.selectFile())
+                                                }
                                             }) {
                                             Icon(
                                                 Icons.Default.AttachFile,
@@ -367,7 +584,9 @@ fun MessagesPage(
                                                             )
                                                         } else {
                                                             viewModel.sendThreadMessage(
-                                                                lazyColumnListState, navController
+                                                                lazyColumnListState,
+                                                                selectedFiles,
+                                                                navController
                                                             )
                                                         }
                                                         true
@@ -420,6 +639,7 @@ fun MessagesPage(
                                                 } else {
                                                     viewModel.sendThreadMessage(
                                                         lazyColumnListState,
+                                                        selectedFiles,
                                                         navController
                                                     )
                                                 }
@@ -476,7 +696,152 @@ fun MessagesPage(
                                                         { value -> msgMenuExpanded.value = value },
                                                         navController
                                                     )
+                                                    if ((viewModel.selectedMsg.value?.filesUrls?.size
+                                                            ?: 0) > 0
+                                                    ) {
+                                                        LazyColumn(
+                                                            modifier = Modifier.heightIn(
+                                                                50.dp,
+                                                                600.dp
+                                                            ).padding(0.dp, 5.dp)
+                                                                .width(
+                                                                    (((viewModel.selectedMsg.value?.message?.length
+                                                                        ?: 0) + 10) * 16).dp
+                                                                )
+                                                        ) {
+                                                            items(
+                                                                items = viewModel.selectedMsg.value?.filesUrls
+                                                                    ?: arrayOf(),
+                                                                key = { file ->
+                                                                    file.id
+                                                                }) { msg ->
+                                                                val fileLoading = remember {
+                                                                    mutableStateOf(0)
+                                                                }
+                                                                Row {
+                                                                    IconButton(
+                                                                        onClick = {
+                                                                            scope.launch {
+                                                                                val path =
+                                                                                    fileChooser!!.selectDownloadingFilepath(
+                                                                                        msg.name
+                                                                                    )
+                                                                                val source =
+                                                                                    if (getPlatform().name != "Android") SystemFileSystem.sink(
+                                                                                        Path(path)
+                                                                                    ) else null
+                                                                                getMessageFileRequest(
+                                                                                    msg.url,
+                                                                                    source,
+                                                                                    {
+                                                                                        fileLoading.value =
+                                                                                            1
+                                                                                    },
+                                                                                    {
+                                                                                        fileLoading.value =
+                                                                                            2
+                                                                                    },
+                                                                                    viewModel.mainSnackbarHostState.value,
+                                                                                    navController,
+                                                                                    path
+                                                                                )
+                                                                            }
+                                                                        },
+                                                                        colors = IconButtonColors(
+                                                                            MaterialTheme.colorScheme.secondaryContainer,
+                                                                            MaterialTheme.colorScheme.onSecondaryContainer,
+                                                                            MaterialTheme.colorScheme.surfaceContainer,
+                                                                            MaterialTheme.colorScheme.onSurface
+                                                                        )
+                                                                    ) {
+                                                                        val headers =
+                                                                            NetworkHeaders.Builder()
+                                                                                .set(
+                                                                                    "Authorization",
+                                                                                    "Bearer ${token?.value?.token}"
+                                                                                )
+                                                                                .set(
+                                                                                    "Cache-Control",
+                                                                                    "private"
+                                                                                )
+                                                                                .set(
+                                                                                    "Content-Type",
+                                                                                    "application/json"
+                                                                                )
+                                                                                .build()
+                                                                        val request =
+                                                                            ImageRequest.Builder(
+                                                                                LocalPlatformContext.current
+                                                                            )
+                                                                                .data("$httpHost${msg.url}")
+                                                                                .httpHeaders(headers)
+                                                                                .build()
+                                                                        when (fileLoading.value) {
+                                                                            0 -> {
+                                                                                if (msg.contentType == "jpg" || msg.contentType == "png") {
+                                                                                    AsyncImage(
+                                                                                        request,
+                                                                                        null,
+                                                                                        contentScale = ContentScale.Crop
+                                                                                    )
+                                                                                } else {
+                                                                                    Icon(
+                                                                                        Icons.Default.Download,
+                                                                                        contentDescription = "Download file",
+                                                                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                                                                    )
+                                                                                }
+                                                                            }
 
+                                                                            1 -> {
+                                                                                CircularProgressIndicator()
+                                                                            }
+
+                                                                            2 -> {
+                                                                                Icon(
+                                                                                    Icons.Default.DownloadDone,
+                                                                                    contentDescription = "Downloaded file",
+                                                                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    Column {
+                                                                        Text(
+                                                                            msg.name,
+                                                                            modifier = Modifier.width(
+                                                                                ((((viewModel.selectedMsg.value?.message?.length
+                                                                                    ?: 0) + 10) * 16)).dp
+                                                                            )
+                                                                                .padding(2.dp),
+                                                                            style = MaterialTheme.typography.bodySmall,
+                                                                            maxLines = 1,
+                                                                            overflow = TextOverflow.Ellipsis
+                                                                        )
+                                                                        Row(Modifier.width(65.dp)) {
+                                                                            Text(
+                                                                                msg.contentType,
+                                                                                modifier = Modifier
+                                                                                    .padding(2.dp),
+                                                                                style = MaterialTheme.typography.labelSmall,
+                                                                                maxLines = 1
+                                                                            )
+                                                                            Text(
+                                                                                formatSize(msg.size),
+                                                                                modifier = Modifier.width(
+                                                                                    (((viewModel.selectedMsg.value?.message?.length
+                                                                                        ?: 0) + 10) * 16).dp
+                                                                                )
+                                                                                    .padding(2.dp),
+                                                                                style = MaterialTheme.typography.labelSmall,
+                                                                                maxLines = 1
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                             HorizontalDivider(
@@ -537,6 +902,152 @@ fun MessagesPage(
                                                     { value -> msgMenuExpanded.value = value },
                                                     navController
                                                 )
+
+                                                if ((item?.filesUrls?.size
+                                                        ?: 0) > 0
+                                                ) {
+                                                    LazyColumn(
+                                                        modifier = Modifier.heightIn(
+                                                            50.dp,
+                                                            600.dp
+                                                        ).padding(0.dp, 5.dp)
+                                                            .width(
+                                                                (((item?.message?.length
+                                                                    ?: 0) + 10) * 16).dp
+                                                            )
+                                                    ) {
+                                                        items(
+                                                            items = item?.filesUrls!!,
+                                                            key = { file ->
+                                                                file.id
+                                                            }) { msg ->
+                                                            val fileLoading = remember {
+                                                                mutableStateOf(0)
+                                                            }
+                                                            Row {
+                                                                IconButton(
+                                                                    onClick = {
+                                                                        scope.launch {
+                                                                            val path =
+                                                                                fileChooser?.selectDownloadingFilepath(
+                                                                                    msg.name
+                                                                                ) ?: ""
+                                                                            val source =
+                                                                                if (getPlatform().name != "Android") SystemFileSystem.sink(
+                                                                                    Path(path)
+                                                                                ) else null
+                                                                            getMessageFileRequest(
+                                                                                msg.url,
+                                                                                source,
+                                                                                {
+                                                                                    fileLoading.value =
+                                                                                        1
+                                                                                },
+                                                                                {
+                                                                                    fileLoading.value =
+                                                                                        2
+                                                                                },
+                                                                                viewModel.mainSnackbarHostState.value,
+                                                                                navController,
+                                                                                path
+                                                                            )
+                                                                        }
+                                                                    },
+                                                                    colors = IconButtonColors(
+                                                                        MaterialTheme.colorScheme.secondaryContainer,
+                                                                        MaterialTheme.colorScheme.onSecondaryContainer,
+                                                                        MaterialTheme.colorScheme.surfaceContainer,
+                                                                        MaterialTheme.colorScheme.onSurface
+                                                                    )
+                                                                ) {
+                                                                    val headers =
+                                                                        NetworkHeaders.Builder()
+                                                                            .set(
+                                                                                "Authorization",
+                                                                                "Bearer ${token?.value?.token}"
+                                                                            )
+                                                                            .set(
+                                                                                "Cache-Control",
+                                                                                "private"
+                                                                            )
+                                                                            .set(
+                                                                                "Content-Type",
+                                                                                "application/json"
+                                                                            )
+                                                                            .build()
+                                                                    val request =
+                                                                        ImageRequest.Builder(
+                                                                            LocalPlatformContext.current
+                                                                        )
+                                                                            .data("$httpHost${msg.url}")
+                                                                            .httpHeaders(headers)
+                                                                            .build()
+                                                                    when (fileLoading.value) {
+                                                                        0 -> {
+                                                                            if (msg.contentType == "jpg" || msg.contentType == "png") {
+                                                                                AsyncImage(
+                                                                                    request,
+                                                                                    null,
+                                                                                    contentScale = ContentScale.Crop
+                                                                                )
+                                                                            } else {
+                                                                                Icon(
+                                                                                    Icons.Default.Download,
+                                                                                    contentDescription = "Download file",
+                                                                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                                                                )
+                                                                            }
+                                                                        }
+
+                                                                        1 -> {
+                                                                            CircularProgressIndicator()
+                                                                        }
+
+                                                                        2 -> {
+                                                                            Icon(
+                                                                                Icons.Default.DownloadDone,
+                                                                                contentDescription = "Downloaded file",
+                                                                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                                Column {
+                                                                    Text(
+                                                                        msg.name,
+                                                                        modifier = Modifier.width(
+                                                                            ((((item.message?.length
+                                                                                ?: 0) + 10) * 16)).dp
+                                                                        )
+                                                                            .padding(2.dp),
+                                                                        style = MaterialTheme.typography.bodySmall,
+                                                                        maxLines = 1,
+                                                                        overflow = TextOverflow.Ellipsis
+                                                                    )
+                                                                    Row(Modifier.width(65.dp)) {
+                                                                        Text(
+                                                                            msg.contentType,
+                                                                            modifier = Modifier
+                                                                                .padding(2.dp),
+                                                                            style = MaterialTheme.typography.labelSmall,
+                                                                            maxLines = 1
+                                                                        )
+                                                                        Text(
+                                                                            formatSize(msg.size),
+                                                                            modifier = Modifier.width(
+                                                                                (((item.message?.length
+                                                                                    ?: 0) + 10) * 16).dp
+                                                                            )
+                                                                                .padding(2.dp),
+                                                                            style = MaterialTheme.typography.labelSmall,
+                                                                            maxLines = 1
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -587,7 +1098,7 @@ fun ChatsPane(
             ) {
 
             }
-            rememberSaveable(token) {
+            remember(token) {
                 viewModel.subscribeToUpdates()
                 viewModel.subscribeToNotifications(navController)
             }
@@ -1074,6 +1585,66 @@ fun listDetailsContent(
     }
 }
 
+//@OptIn(ExperimentalMaterial3Api::class, ExperimentalUuidApi::class)
+//@Composable
+//private fun profilePopup(viewModel: MessagesViewModel = viewModel { MessagesViewModel() }){
+//    AnimatedVisibility(viewModel.userProfileVisible.value) {
+//        BasicAlertDialog(
+//            onDismissRequest = { viewModel.userProfileVisible.value = false },
+//            properties = DialogProperties(
+//                usePlatformDefaultWidth = false
+//            ),
+//            modifier = Modifier.fillMaxWidth(0.5f).fillMaxHeight(0.7f)
+//        ) {
+//            val profile = remember {  }
+//            Card(
+//                modifier = Modifier.fillMaxWidth(),
+//                shape = RectangleShape,
+//            ) {
+//                Row(modifier = Modifier.fillMaxWidth()) {
+//                    Column(
+//                        Modifier.align(
+//                            Alignment.Top
+//                        ).weight(0.9f).padding(5.dp)
+//                    ) {
+//                        Text(
+//                            profile?.login ?: "Downloading login...",
+//                            modifier = Modifier
+//                                .basicMarquee(),
+//                            style = MaterialTheme.typography.bodyMedium
+//                        )
+//                        Text(
+//                            profile?.role ?: "Undefined",
+//                            modifier = Modifier.padding(1.dp),
+//                            style = MaterialTheme.typography.labelSmall
+//                        )
+//                    }
+//                    println(profile?.role)
+//                    Canvas(
+//                        modifier = Modifier.padding(10.dp).align(
+//                            CenterVertically
+//                        )
+//                    ) {
+//                        scale(scaleX = 1f, scaleY = 1f) {
+//                            if (profile?.status == "ONLINE") {
+//                                drawCircle(
+//                                    Color.Green,
+//                                    radius = 4.dp.toPx()
+//                                )
+//                            } else {
+//                                drawCircle(
+//                                    Color.Red,
+//                                    radius = 4.dp.toPx()
+//                                )
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun msgsScaffoldBottomContent(
@@ -1104,7 +1675,7 @@ fun msgsScaffoldBottomContent(
             properties = DialogProperties(
                 usePlatformDefaultWidth = false
             ),
-            modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.9f)
+            modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.9f).imePadding()
         ) {
             val pagerState = rememberPagerState(
                 initialPage = page,
@@ -1131,7 +1702,7 @@ fun msgsScaffoldBottomContent(
                         state = pagerState,
                         modifier = Modifier.align(Center)
                     ) { page ->
-                        if (selectedFiles[page].extension != "png" && selectedFiles[page].extension != "jpg") {
+                        if (selectedFiles[page].extension != "png" && selectedFiles[page].extension != "jpg" && selectedFiles[page].extension != "jpeg") {
                             Icon(
                                 imageVector = when (val icon =
                                     iconsMapper[selectedFiles[page].extension]) {
@@ -1145,7 +1716,7 @@ fun msgsScaffoldBottomContent(
                             )
                         } else {
                             AsyncImage(
-                                "file://${selectedFiles[page].path}",
+                                selectedFiles[page].uri,
                                 null,
                                 modifier = Modifier.align(Center).fillMaxWidth().fillMaxHeight(),
                                 alignment = Center
@@ -1199,7 +1770,7 @@ fun msgsScaffoldBottomContent(
         }
     }
 
-    Column {
+    Column(Modifier.imePadding()) {
         Row {
             LazyRow {
                 items(selectedFiles) { file ->
@@ -1211,7 +1782,7 @@ fun msgsScaffoldBottomContent(
                             modifier = Modifier
                                 .width(200.dp)
                         ) {
-                            if (file.extension != "png" && file.extension != "jpg") {
+                            if (file.extension != "png" && file.extension != "jpg" && file.extension != "jpeg") {
                                 Icon(
                                     imageVector = when (val icon = iconsMapper[file.extension]) {
                                         null -> Icons.Default.FilePresent
@@ -1231,10 +1802,11 @@ fun msgsScaffoldBottomContent(
                                         page = selectedFiles.indexOf(file)
                                     }) {
                                     AsyncImage(
-                                        "file://${file.path}", null, modifier = Modifier.size(
+                                        file.uri, null, modifier = Modifier.size(
                                             50.dp
                                         ).clip(CircleShape)
-                                            .align(TopStart)
+                                            .align(TopStart),
+                                        contentScale = ContentScale.Crop
                                     )
                                 }
                             }
@@ -1309,7 +1881,9 @@ fun msgsScaffoldBottomContent(
                     CenterVertically
                 ), onClick = {
                     println("Choose file")
-                    selectedFiles.addAll(fileChooser.selectFile())
+                    scope.launch {
+                        selectedFiles.addAll(fileChooser!!.selectFile())
+                    }
                     println(selectedFiles.size)
                 }) {
                 Icon(
@@ -1390,7 +1964,7 @@ fun msgsScaffoldBottomContent(
 
 @OptIn(
     ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class,
-    ExperimentalUuidApi::class
+    ExperimentalUuidApi::class, ExperimentalMaterial3ExpressiveApi::class
 )
 @Composable
 fun msgsScaffoldTopBar(
@@ -1421,11 +1995,13 @@ fun msgsScaffoldTopBar(
         viewModel.showChatProfiles(viewModel.selectedChat.value, navController)
     }
     TopAppBar(
-        modifier = Modifier.height(50.dp).clickable {
+        expandedHeight = 2.dp,
+        windowInsets = WindowInsets(),
+        modifier = Modifier.clickable {
             visible = true
         },
         title = {
-            Column {
+            Column(modifier = Modifier) {
                 Text(
                     buildAnnotatedString {
                         withStyle(
@@ -1443,7 +2019,7 @@ fun msgsScaffoldTopBar(
                     maxLines = 1
                 )
                 TooltipBox(
-                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(10.dp),
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(5.dp),
                     tooltip = {
                         RichTooltip(
                             modifier = Modifier.hoverable(tooltipInteractionSource),
@@ -1527,7 +2103,9 @@ fun msgsScaffoldTopBar(
                                 SpanStyle(
                                     color = MaterialTheme.colorScheme.primary,
                                     fontSize = MaterialTheme.typography.labelMedium.fontSize,
-                                    baselineShift = BaselineShift(-0.6f)
+                                    baselineShift = if (getPlatform().name == "Android") BaselineShift(
+                                        0.5f
+                                    ) else BaselineShift(-0.6f)
                                 )
                             ) {
                                 append("${viewModel.selectedChatMembers.value} участников, ${viewModel.selectedChatMembersOnline.value} в сети")
@@ -1610,7 +2188,8 @@ fun msgsColumn(
                 items = viewModel.messages, key = { message -> message?.id ?: 0 }) { item ->
                 val msgMenuExpanded = remember { mutableStateOf(false) }
                 ElevatedCard(
-                    modifier = Modifier.widthIn(200.dp, 600.dp).padding(5.dp, 5.dp),
+                    modifier = Modifier.widthIn(200.dp, 600.dp).navigationBarsPadding()
+                        .padding(5.dp, 5.dp),
                     onClick = {
                         scope.launch {
                             msgMenuExpanded.value = true
@@ -1655,20 +2234,28 @@ fun msgsColumn(
                                     file.id
                                 }) { msg ->
                                 println(msg.url)
+                                var fileLoading = remember {
+                                    mutableStateOf(0)
+                                }
                                 Row {
                                     IconButton(
                                         onClick = {
-                                            val path = fileChooser.selectDownloadingFilepath(msg.name)
                                             scope.launch {
-                                                val fileBytes = Buffer()
-                                                MessagesPageRequests.getMessageFileRequest(
+                                                val path =
+                                                    fileChooser!!.selectDownloadingFilepath(msg.name)
+                                                val source =
+                                                    if (getPlatform().name != "Android") SystemFileSystem.sink(
+                                                        Path(path)
+                                                    ) else null
+                                                getMessageFileRequest(
                                                     msg.url,
-                                                    { bytes -> fileBytes.write(bytes) },
+                                                    source,
+                                                    { fileLoading.value = 1 },
+                                                    { fileLoading.value = 2 },
                                                     viewModel.mainSnackbarHostState.value,
-                                                    navController
+                                                    navController,
+                                                    path
                                                 )
-                                                val source = SystemFileSystem.sink(Path(path))
-                                                source.write(fileBytes, fileBytes.size)
                                             }
                                         },
                                         colors = IconButtonColors(
@@ -1678,11 +2265,45 @@ fun msgsColumn(
                                             MaterialTheme.colorScheme.onSurface
                                         )
                                     ) {
-                                        Icon(
-                                            Icons.Default.Download,
-                                            contentDescription = "Download file",
-                                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
+                                        val headers = NetworkHeaders.Builder()
+                                            .set("Authorization", "Bearer ${token?.value?.token}")
+                                            .set("Cache-Control", "private")
+                                            .set("Content-Type", "application/json")
+                                            .build()
+                                        val request =
+                                            ImageRequest.Builder(LocalPlatformContext.current)
+                                                .data("$httpHost${msg.url}")
+                                                .httpHeaders(headers)
+                                                .build()
+                                        when (fileLoading.value) {
+                                            0 -> {
+                                                if (msg.contentType == "jpg" || msg.contentType == "png") {
+                                                    AsyncImage(
+                                                        request,
+                                                        null,
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        Icons.Default.Download,
+                                                        contentDescription = "Download file",
+                                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                                    )
+                                                }
+                                            }
+
+                                            1 -> {
+                                                CircularProgressIndicator()
+                                            }
+
+                                            2 -> {
+                                                Icon(
+                                                    Icons.Default.DownloadDone,
+                                                    contentDescription = "Downloaded file",
+                                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                            }
+                                        }
                                     }
                                     Column {
                                         Text(

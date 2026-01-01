@@ -5,9 +5,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.navigation.NavHostController
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
-import io.ktor.client.request.forms.InputProvider
-import io.ktor.client.request.forms.formData
-import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.headers
@@ -16,12 +13,8 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
-import kotlinx.io.buffered
-import kotlinx.io.files.Path
-import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.RawSink
 import ru.ssshteam.potatocoder228.messenger.PageRoutes
 import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
@@ -32,34 +25,22 @@ import ru.ssshteam.potatocoder228.messenger.httpHost
 import ru.ssshteam.potatocoder228.messenger.token
 import kotlin.uuid.ExperimentalUuidApi
 
-suspend fun sendMessageFile(
+expect suspend fun sendMessageFile(
     chatId: String,
     messageId: String = "",
     files: MutableList<ru.ssshteam.potatocoder228.messenger.internal.File>,
     navController: NavHostController
-) {
-    val response: HttpResponse = httpClient.submitFormWithBinaryData(
-        url = "$httpHost/chat/${chatId}/message/${messageId}/files",
-        formData = formData {
-            for (file in files) {
-                append(
-                    "files",
-                    InputProvider { SystemFileSystem.source(Path(file.path)).buffered() },
-                    Headers.build {
-                        append(HttpHeaders.ContentType, "multipart/form-data")
-                        append(HttpHeaders.ContentDisposition, "filename=\"${file.filename}\"")
-                    })
-            }
-        },
-        block = {
-            headers {
-                header("Authorization", "Bearer ${token?.value?.token}")
-            }
-        }
-    )
-    println(response.status)
-}
+)
 
+expect suspend fun getMessageFileRequest(
+    url: String,
+    dest: RawSink?,
+    onStart: () -> Unit,
+    onEnd: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+    navController: NavHostController,
+    path: String
+)
 
 class MessagesPageRequests {
     companion object {
@@ -298,30 +279,6 @@ class MessagesPageRequests {
             }
         }
 
-        suspend fun getMessageFileRequest(
-            url: String,
-            onLoad: (ByteArray) -> Unit,
-            snackbarHostState: SnackbarHostState,
-            navController: NavHostController
-        ) {
-            try {
-                val httpResponse: HttpResponse =
-                    httpClient.get("$httpHost${url}") {
-                        headers {
-                            header("Authorization", "Bearer ${token?.value?.token}")
-                        }
-                        contentType(ContentType.Application.Json)
-                    }
-                if (httpResponse.status.value in 200..299) {
-                    onLoad(httpResponse.body<ByteArray>())
-                } else {
-                    errorAction(httpResponse, snackbarHostState, navController)
-                }
-            } catch (e: Throwable) {
-                exceptionAction(e, snackbarHostState, navController)
-            }
-        }
-
         @OptIn(ExperimentalUuidApi::class)
         suspend fun getChatMessagesRequest(
             chatDTO: ChatDTO?,
@@ -379,7 +336,7 @@ class MessagesPageRequests {
             onChatsChange: (ChatDTO) -> Unit,
             snackbarHostState: SnackbarHostState,
             navController: NavHostController
-        ) {
+        ): MessageDTO {
             try {
                 val httpResponse: HttpResponse =
                     httpClient.post("$httpHost/chat/${chatDTO?.id}/thread/${messageDTO?.threadParentMsgId.toString()}/send") {
@@ -391,11 +348,14 @@ class MessagesPageRequests {
                     }
                 if (httpResponse.status.value in 200..299) {
 //                    onChatsChange(httpResponse.body())
+                    return httpResponse.body()
                 } else {
                     errorAction(httpResponse, snackbarHostState, navController)
+                    return MessageDTO()
                 }
             } catch (e: Throwable) {
                 exceptionAction(e, snackbarHostState, navController)
+                return MessageDTO()
             }
         }
 

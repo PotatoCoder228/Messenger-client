@@ -19,7 +19,7 @@ fun main() {
             remember {
                 try {
                     datastore = DataStore()
-                    fileChooser = FileChooser(window)
+                    fileChooser = DesktopFileChooser(window)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     val file = File("Cookie.db")
@@ -27,7 +27,7 @@ fun main() {
                         file.delete()
                     }
                     datastore = DataStore()
-                    fileChooser = FileChooser(window)
+                    fileChooser = DesktopFileChooser(window)
                 }
             }
             App()

@@ -6,23 +6,53 @@ import androidx.compose.ui.awt.ComposeWindow
 import ru.ssshteam.potatocoder228.messenger.internal.File
 import java.awt.Dimension
 import java.awt.FileDialog
-import java.awt.FileDialog.LOAD
 import java.awt.FileDialog.SAVE
-import java.nio.file.Paths
 import javax.swing.UIManager
 
-actual class FileChooser {
-    private var window: ComposeWindow? = null
+class DesktopFileChooser(window: ComposeWindow) : FileChooser {
+    private var window: ComposeWindow? = window
 
-    actual constructor() {
-    }
-
-    constructor(window: ComposeWindow) {
-        this.window = window
+    init {
         UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
     }
 
-    actual fun selectFile():
+    override suspend fun lockChooser() {
+
+    }
+
+    override fun addFileInputStream(path: String, stream: Any) {
+
+    }
+
+    override fun addFile(file: File) {
+
+    }
+
+    override fun getFileInputStream(path: String): Any {
+        return "" as Any
+    }
+
+    override fun addPathForDownloading(path: String) {
+    }
+
+    override fun addFileOutputStream(path: String, stream: Any) {
+    }
+
+    override fun removeFileOutputStream(path: String) {
+    }
+
+    override fun removeFileInputStream(path: String) {
+    }
+
+    override fun getFileOutputStream(path: String): Any {
+        return ""
+    }
+
+    override fun unlockChooser() {
+
+    }
+
+    override suspend fun selectFile():
             SnapshotStateList<File> {
         val fileDialog = FileDialog(window)
         fileDialog.size = Dimension(500, 500)
@@ -30,11 +60,11 @@ actual class FileChooser {
         fileDialog.isMultipleMode = true
         val filesList:
                 SnapshotStateList<File> = mutableStateListOf()
-        fileDialog.files.forEach { file -> filesList.add(File(file.absolutePath, file.name, file.extension)) }
+        fileDialog.files.forEach { file -> filesList.add(File(file.absolutePath, file.name, file.extension, file.totalSpace, "file://${file.path}")) }
         return filesList
     }
 
-    actual fun selectDownloadingFilepath(filename: String): String{
+     override suspend fun selectDownloadingFilepath(filename: String): String{
         val fileDialog = FileDialog(window)
         fileDialog.mode = SAVE
         fileDialog.file = filename

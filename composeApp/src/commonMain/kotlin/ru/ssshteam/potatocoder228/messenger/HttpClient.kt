@@ -13,10 +13,10 @@ import org.hildan.krossbow.stomp.StompClient
 import org.hildan.krossbow.websocket.ktor.KtorWebSocketClient
 import ru.ssshteam.potatocoder228.messenger.dto.TokenDTO
 
+//const val httpHost = "http://10.0.2.2:9087"
+//const val wsHost = "ws://10.0.2.2:9087/ws"
 const val httpHost = "http://localhost:9087"
 const val wsHost = "ws://localhost:9087/ws"
-//const val httpHost = "http://localhost:9087"
-//const val wsHost = "ws://localhost:9087/ws"
 
 var token: MutableState<TokenDTO>? = null
 

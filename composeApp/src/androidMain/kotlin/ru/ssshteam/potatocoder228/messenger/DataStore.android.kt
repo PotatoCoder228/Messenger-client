@@ -15,9 +15,7 @@ actual class DataStore : AutoCloseable {
     constructor(db: SQLiteDatabase) {
 
         databaseConnection = db;
-        var query: Cursor? = databaseConnection?.rawQuery("PRAGMA journal_mode=DELETE", null)
-        query?.close()
-        query = databaseConnection?.rawQuery("PRAGMA cipher = 'chacha20'", null)
+        var query: Cursor?  = databaseConnection?.rawQuery("PRAGMA cipher = 'chacha20'", null)
         query?.close()
         query = databaseConnection?.rawQuery("PRAGMA key = 'MyBigKey'", null)
         query?.close()
@@ -38,7 +36,7 @@ actual class DataStore : AutoCloseable {
 
     actual fun getCookie(key: String): String {
         var result = ""
-        val query: Cursor? = databaseConnection?.rawQuery("SELECT * FROM users;", null)
+        val query: Cursor? = databaseConnection?.rawQuery("SELECT data FROM Cookie WHERE key=?", arrayOf(key))
         if (query?.moveToFirst() == true) {
             result = query.getString(0)
         }
