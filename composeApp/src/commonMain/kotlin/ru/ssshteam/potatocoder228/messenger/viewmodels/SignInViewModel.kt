@@ -13,11 +13,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
+import ru.ssshteam.potatocoder228.messenger.currentUserId
 import ru.ssshteam.potatocoder228.messenger.datastore
 import ru.ssshteam.potatocoder228.messenger.dto.UserAuthDTO
 import ru.ssshteam.potatocoder228.messenger.requests.SignInRequests.Companion.signInRequest
 import ru.ssshteam.potatocoder228.messenger.token
-import ru.ssshteam.potatocoder228.messenger.username
 import kotlin.uuid.ExperimentalUuidApi
 
 class SignInViewModel : ViewModel() {
@@ -53,13 +53,12 @@ class SignInViewModel : ViewModel() {
             signInRequest(
                 UserAuthDTO(loginInput.value, passwordInput.value), navController, snackbarHostState
             )
-            username = loginInput.value
             if (rememberPassChecked.value) {
-                println("save token")
                 datastore?.saveCookie("savePass", "true")
                 datastore?.saveCookie("token", token!!.value.token)
                 datastore?.saveCookie("refreshToken", token!!.value.refreshToken)
                 datastore?.saveCookie("userId", token!!.value.userId.toString())
+                currentUserId = token!!.value.userId
             }
         }
     }

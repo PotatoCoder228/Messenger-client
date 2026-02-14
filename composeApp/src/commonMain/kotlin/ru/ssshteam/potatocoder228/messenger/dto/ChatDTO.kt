@@ -17,6 +17,7 @@ data class ChatDTO @OptIn(ExperimentalUuidApi::class) constructor(
     val id: Uuid = Uuid.NIL,
     val name: String = "",
     val role: String = "",
+    val updateAt: LocalDateTime = LocalDateTime(1970, 1, 1, 0, 0),
     var newMessages: Int? = null,
     val lastMsgData: String = "",
     val lastMsgSendAt: LocalDateTime = LocalDateTime(1970, 1, 1, 0, 0),

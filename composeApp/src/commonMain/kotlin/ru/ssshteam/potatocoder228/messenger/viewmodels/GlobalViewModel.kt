@@ -34,6 +34,7 @@ import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
 import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
 import ru.ssshteam.potatocoder228.messenger.dto.NotificationDTO
 import ru.ssshteam.potatocoder228.messenger.dto.OperationDTO
+import ru.ssshteam.potatocoder228.messenger.dto.SearchObjectDTO
 import ru.ssshteam.potatocoder228.messenger.dto.UserInChatDTO
 import ru.ssshteam.potatocoder228.messenger.dto.internal.FileView
 import ru.ssshteam.potatocoder228.messenger.internal.File
@@ -41,6 +42,8 @@ import ru.ssshteam.potatocoder228.messenger.json
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.deleteChatRequest
 import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.getChatsRequest
+import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.getNextChatsRequest
+import ru.ssshteam.potatocoder228.messenger.requests.MessagesPageRequests.Companion.getPreviousChatsRequest
 import ru.ssshteam.potatocoder228.messenger.requests.sendMessageFile
 import ru.ssshteam.potatocoder228.messenger.token
 import ru.ssshteam.potatocoder228.messenger.wsHost
@@ -49,7 +52,8 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class MessagesViewModel : ViewModel() {
+class GlobalViewModel : ViewModel() {
+    // MessagesPage
     @OptIn(ExperimentalAtomicApi::class)
     var chatsSessionIdentificator: AtomicInt = AtomicInt(0)
     private val chatsSessionMutex = Mutex()
@@ -57,7 +61,7 @@ class MessagesViewModel : ViewModel() {
     var expanded = mutableStateOf(false)
     var editingMode = mutableStateOf(false)
     var threadEditingMode = mutableStateOf(false)
-    val snackbarChatsHostState = SnackbarHostState()
+    val snackbarListHostState = SnackbarHostState()
     var addChatDialogExpanded = mutableStateOf(false)
     val chatNameInput = mutableStateOf("")
     var key = mutableStateOf(0)
@@ -73,16 +77,15 @@ class MessagesViewModel : ViewModel() {
     var notificationsSessionIdentificator: AtomicInt = AtomicInt(0)
     private val notificationsSessionMutex = Mutex()
     private var notificationsCurrentSession: StompSession? = null
+
+    val chatsListMutex = Mutex()
     val chats = mutableStateListOf<ChatDTO?>()
+    val objectsSearchResult = mutableStateListOf<SearchObjectDTO?>()
 
     val navRailVisible = mutableStateOf(false)
 
-    val userProfileVisible = mutableStateOf(false)
-
-    @OptIn(ExperimentalUuidApi::class)
-    val profileId = mutableStateOf(Uuid.NIL)
-
     val mainSnackbarHostState = mutableStateOf(SnackbarHostState())
+    val messagesListMutex = Mutex()
     val messages = mutableStateListOf<MessageDTO?>()
     val chatProfiles = mutableStateListOf<UserInChatDTO?>()
     val threadMessages = mutableStateListOf<MessageDTO?>()
@@ -102,7 +105,6 @@ class MessagesViewModel : ViewModel() {
     val fromExtraToDetail = mutableStateOf(false)
     val fromDetailToList = mutableStateOf(false)
 
-    val msgSettingsModifier: MutableState<Modifier?> = mutableStateOf(null)
     val msgSettingsDropdownMenuModifier: MutableState<Modifier?> = mutableStateOf(null)
 
 
@@ -124,49 +126,198 @@ class MessagesViewModel : ViewModel() {
     @OptIn(ExperimentalUuidApi::class)
     val threadMsgDTO: MutableState<MessageDTO> = mutableStateOf(MessageDTO())
 
+    // SettingsPage
+
+    val chatsListModified = mutableStateOf(false)
+
+    val chatProfileOpened = mutableStateOf(false)
+
     fun loadChats(navController: NavHostController) {
         viewModelScope.launch {
-            getChatsRequest(
-                snackbarHostState = mainSnackbarHostState.value, onChatsChange = { chat ->
-                    chat.unreadedMessages = chat.newMessages!!
-                    chats.add(chat)
-                }, navController
-            )
+            chatsListMutex.withLock {
+                getChatsRequest(
+                    snackbarHostState = mainSnackbarHostState.value,
+                    { chats.clear() },
+                    onChatsChange = { chat ->
+                        chat.unreadedMessages = chat.newMessages!!
+                        chats.add(chat)
+                    },
+                    navController
+                )
+            }
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    fun loadNextChats(navController: NavHostController) {
+        viewModelScope.launch {
+            chatsListMutex.withLock {
+                getNextChatsRequest(
+                    snackbarHostState = mainSnackbarHostState.value, onChatsChange = { chat ->
+                        chat.unreadedMessages = chat.newMessages!!
+                        val contains = chats.withIndex().firstOrNull {
+                            (chat.id) == (it.value?.id)
+                        }
+                        if (contains == null) {
+                            chats.add(
+                                0,
+                                chat
+                            )
+                        }
+                        while (chats.size > 100) {
+                            chats.removeLast()
+                        }
+                    }, navController, if (chats.isEmpty()) null else chats.first()?.updateAt
+                )
+            }
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    fun loadPreviousChats(navController: NavHostController) {
+        viewModelScope.launch {
+            chatsListMutex.withLock {
+                getPreviousChatsRequest(
+                    snackbarHostState = mainSnackbarHostState.value, onChatsChange = { chat ->
+                        chat.unreadedMessages = chat.newMessages!!
+                        val contains = chats.withIndex().firstOrNull {
+                            (chat.id) == (it.value?.id)
+                        }
+                        if (contains == null) {
+                            chats.add(
+                                chat
+                            )
+                        }
+                        while (chats.size > 100) {
+                            chats.removeFirst()
+                        }
+                    }, navController, if (chats.isEmpty()) null else chats.last()?.updateAt
+                )
+            }
         }
     }
 
     @OptIn(ExperimentalUuidApi::class)
     fun showChatMessages(
         chatDTO: ChatDTO?,
+        navController: NavHostController,
+    ) {
+        viewModelScope.launch {
+            messagesListMutex.withLock {
+                if (chatDTO != null) {
+                    val first = chats.withIndex().firstOrNull {
+                        (chatDTO.id) == (it.value?.id)
+                    }
+                    val chatCopy = chatDTO.copy(unreadedMessages = 0)
+                    selectedChat.value = chatCopy
+                    if (first != null) {
+                        chats[first.index] = chatCopy
+                    }
+
+                }
+                detailPaneState.value = UiState.Loading
+                MessagesPageRequests.getChatMessagesRequest(
+                    chatDTO, mainSnackbarHostState.value, { messages.clear() },
+                    { message ->
+                        message.unreadMessages = message.newThreadMessages
+                        val contains = messages.withIndex().firstOrNull {
+                            (message.id) == (it.value?.id)
+                        }
+                        if (contains == null) {
+                            messages.add(
+                                message
+                            )
+                        }
+                        while (messages.size > 150) {
+                            messages.removeFirst()
+                        }
+                    }, navController
+                )
+                detailPaneState.value = UiState.Loaded
+            }
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    fun uploadNextChatMessages(
+        chatDTO: ChatDTO?,
+        navController: NavHostController,
+    ) {
+        viewModelScope.launch {
+            messagesListMutex.withLock {
+                if (chatDTO != null) {
+                    val first = chats.withIndex().firstOrNull {
+                        (chatDTO.id) == (it.value?.id)
+                    }
+                    if (first != null) {
+                        selectedChat.value = chats[first.index]
+                        chats[first.index] = chats[first.index]?.copy(unreadedMessages = 0)
+                    }
+
+                }
+                //detailPaneState.value = UiState.Loading
+                MessagesPageRequests.getNextChatMessagesRequest(
+                    chatDTO, mainSnackbarHostState.value,
+                    { message ->
+                        message.unreadMessages = message.newThreadMessages
+                        val contains = messages.withIndex().firstOrNull {
+                            (message.id) == (it.value?.id)
+                        }
+                        if (contains == null) {
+                            messages.add(
+                                0,
+                                message
+                            )
+                        }
+                        while (messages.size > 150) {
+                            messages.removeLast()
+                        }
+                    }, navController, if (messages.isEmpty()) null else messages.first()?.sendAt
+                )
+                //detailPaneState.value = UiState.Loaded
+            }
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    fun uploadPreviousChatMessages(
+        chatDTO: ChatDTO?,
         navController: NavHostController
     ) {
         viewModelScope.launch {
-            if (chatDTO != null) {
-                val first = chats.withIndex().firstOrNull {
-                    (chatDTO.id) == (it.value?.id)
-                }
-                val chatCopy = chatDTO.copy(unreadedMessages = 0)
-                selectedChat.value = chatCopy
-                if (first != null) {
-                    chats[first.index] = chatCopy
-                }
-
-            }
-            detailPaneState.value = UiState.Loading
-            messages.clear()
-            MessagesPageRequests.getChatMessagesRequest(
-                chatDTO, mainSnackbarHostState.value,
-                { message ->
-                    for (file in message.filesUrls) {
-                        println(file.name)
+            messagesListMutex.withLock {
+                if (chatDTO != null) {
+                    val first = chats.withIndex().firstOrNull {
+                        (chatDTO.id) == (it.value?.id)
                     }
-                    message.unreadMessages = message.newThreadMessages
-                    messages.add(
-                        message
-                    )
-                }, navController
-            )
-            detailPaneState.value = UiState.Loaded
+                    if (first != null) {
+                        selectedChat.value = chats[first.index]
+                        chats[first.index] = chats[first.index]?.copy(unreadedMessages = 0)
+                    }
+
+                }
+                // detailPaneState.value = UiState.Loading
+                MessagesPageRequests.getPreviousChatMessagesRequest(
+                    chatDTO, mainSnackbarHostState.value,
+                    { message ->
+                        message.unreadMessages = message.newThreadMessages
+
+                        val contains = messages.withIndex().firstOrNull {
+                            (message.id) == (it.value?.id)
+                        }
+
+                        if (contains == null) {
+                            messages.add(
+                                message
+                            )
+                        }
+                        while (messages.size > 200) {
+                            messages.removeFirst()
+                        }
+                    }, navController, if (messages.isEmpty()) null else messages.last()?.sendAt
+                )
+                //detailPaneState.value = UiState.Loaded
+            }
         }
     }
 
@@ -194,7 +345,7 @@ class MessagesViewModel : ViewModel() {
             MessagesPageRequests.addChatRequest(
                 ChatCreateDTO(
                     chatNameInput.value, usersList
-                ), { chat -> }, snackbarChatsHostState, navController
+                ), { chat -> }, snackbarListHostState, navController
             )
 
             addChatDialogExpanded.value = false
@@ -224,12 +375,12 @@ class MessagesViewModel : ViewModel() {
                     files = selectedFiles,
                     navController
                 )
-            } else {
-                println("uuid is null! ${addedMessageDTO.id}")
             }
             selectedFiles.clear()
-            lazyColumnListState.scrollToItem(0)
             message.value = ""
+            chatsListModified.value = true
+            showChatMessages(selectedChat.value, navController)
+            lazyColumnListState.scrollToItem(0)
         }
     }
 
@@ -242,7 +393,6 @@ class MessagesViewModel : ViewModel() {
                 chatProfiles.clear()
                 MessagesPageRequests.getChatProfilesRequest(
                     chatDTO, mainSnackbarHostState.value, { profile ->
-                        println(profile.login)
                         chatProfiles.add(
                             profile
                         )
@@ -281,8 +431,6 @@ class MessagesViewModel : ViewModel() {
                     files = selectedFiles,
                     navController
                 )
-            } else {
-                println("uuid is null! ${addedMessageDTO.id}")
             }
             selectedFiles.clear()
             lazyColumnListState.scrollToItem(threadMessages.size - 1)
@@ -308,12 +456,15 @@ class MessagesViewModel : ViewModel() {
             }
             MessagesPageRequests.getThreadMessagesRequest(
                 chatDTO, selectedMsg.value, mainSnackbarHostState.value, { message ->
-                    for (file in message.filesUrls) {
-                        println(file.name)
+
+                    val contains = threadMessages.withIndex().firstOrNull {
+                        (message.id) == (it.value?.id)
                     }
-                    threadMessages.add(
-                        message
-                    )
+                    if (contains == null) {
+                        threadMessages.add(
+                            message
+                        )
+                    }
                 }, navController
             )
         }
@@ -469,18 +620,32 @@ class MessagesViewModel : ViewModel() {
                                 "ADD" -> {
                                     if (stompMessage.data?.messageType == "REGULAR") {
                                         val index = lazyColumnListState.firstVisibleItemIndex
-                                        messages.add(
-                                            0, stompMessage.data
-                                        )
+                                        val contains = messages.withIndex().firstOrNull {
+                                            val data = stompMessage.data
+                                            (data?.id) == (it.value?.id)
+                                        }
+
+                                        if (contains == null) {
+                                            messages.add(
+                                                0, stompMessage.data
+                                            )
+                                        }
                                         if (index == 0) {
+                                            //showChatMessages(selectedChat.value, navController)
                                             lazyColumnListState.scrollToItem(
                                                 0
                                             )
                                         }
                                     } else if (stompMessage.data?.threadParentMsgId == selectedMsg.value?.id && stompMessage.data?.messageType == "THREAD") {
-                                        threadMessages.add(
-                                            stompMessage.data
-                                        )
+                                        val contains = threadMessages.withIndex().firstOrNull {
+                                            val data = stompMessage.data
+                                            (data?.id) == (it.value?.id)
+                                        }
+                                        if (contains == null) {
+                                            threadMessages.add(
+                                                stompMessage.data
+                                            )
+                                        }
                                     }
                                 }
 
@@ -518,7 +683,6 @@ class MessagesViewModel : ViewModel() {
                                         val first = threadMessages.withIndex().firstOrNull {
                                             (stompMessage.data?.id ?: 0) == (it.value?.id ?: 0)
                                         }
-                                        println("${first?.index}")
                                         if (first != null) {
                                             threadMessages[first.index] = stompMessage.data
                                         }
@@ -571,11 +735,12 @@ class MessagesViewModel : ViewModel() {
                                         val first = chats.withIndex().firstOrNull {
                                             (stompMessage.chatId) == (it.value?.id)
                                         }
-                                        println("NEW_MESSAGE2")
-                                        if (first != null && selectedChat.value?.id != first.value?.id) {
-                                            println("NEW_MESSAGE3")
+                                        if (first != null) {
                                             chats[first.index] =
-                                                chats[first.index]?.copy(unreadedMessages = first.value?.unreadedMessages!! + 1)
+                                                chats[first.index]?.copy(
+                                                    unreadedMessages = first.value?.unreadedMessages!! + 1,
+                                                    lastMsgData = stompMessage.data
+                                                )
                                         }
                                     } catch (e: Exception) {
                                         e.printStackTrace()
@@ -621,13 +786,14 @@ class MessagesViewModel : ViewModel() {
                                                 id.length - 1
                                             )) == (it.value?.id.toString())
                                         }
-                                        if (first != null && selectedMsg.value?.id != first.value?.id) {
+                                        if (first != null) {
                                             val sendAt =
                                                 jsonElement.jsonObject["lastMsgSendAt"].toString()
                                             val msgOwner =
                                                 jsonElement.jsonObject["lastMsgOwner"].toString()
                                             val msgData =
                                                 jsonElement.jsonObject["lastMsgData"].toString()
+                                            println(msgData)
                                             chats[first.index] =
                                                 chats[first.index]?.copy(
                                                     lastMsgOwner = msgOwner.subSequence(
@@ -662,7 +828,7 @@ class MessagesViewModel : ViewModel() {
                                                 id.length - 1
                                             )) == (it.value?.id.toString())
                                         }
-                                        if (first != null && selectedMsg.value?.id != first.value?.id) {
+                                        if (first != null) {
                                             val sendAt =
                                                 jsonElement.jsonObject["lastMsgSendAt"].toString()
                                             val msgOwner =

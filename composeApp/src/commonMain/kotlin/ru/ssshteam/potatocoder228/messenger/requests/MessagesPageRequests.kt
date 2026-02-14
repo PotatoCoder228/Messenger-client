@@ -14,6 +14,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.datetime.LocalDateTime
 import kotlinx.io.RawSink
 import ru.ssshteam.potatocoder228.messenger.PageRoutes
 import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
@@ -24,6 +25,7 @@ import ru.ssshteam.potatocoder228.messenger.httpClient
 import ru.ssshteam.potatocoder228.messenger.httpHost
 import ru.ssshteam.potatocoder228.messenger.token
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 expect suspend fun sendMessageFile(
     chatId: String,
@@ -71,6 +73,7 @@ class MessagesPageRequests {
 
         suspend fun getChatsRequest(
             snackbarHostState: SnackbarHostState,
+            cleanChats: () -> Unit,
             onChatsChange: (ChatDTO) -> Unit,
             navController: NavHostController
         ) {
@@ -78,6 +81,67 @@ class MessagesPageRequests {
                 val httpResponse: HttpResponse = httpClient.get("$httpHost/chats") {
                     headers {
                         header("Authorization", "Bearer ${token?.value?.token}")
+                    }
+                    contentType(ContentType.Application.Json)
+                }
+                if (httpResponse.status.value in 200..299) {
+                    cleanChats()
+                    httpResponse.body<List<ChatDTO>>().forEach(onChatsChange)
+                } else if (httpResponse.status.value in 400..499) {
+                    navController.navigate(PageRoutes.SignInPage.route)
+                } else {
+                    errorAction(httpResponse, snackbarHostState, navController)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState, navController)
+            }
+        }
+
+        suspend fun getNextChatsRequest(
+            snackbarHostState: SnackbarHostState,
+            onChatsChange: (ChatDTO) -> Unit,
+            navController: NavHostController,
+            after: LocalDateTime?
+        ) {
+            try {
+                val httpResponse: HttpResponse = httpClient.get("$httpHost/chats/next") {
+                    headers {
+                        header("Authorization", "Bearer ${token?.value?.token}")
+                    }
+                    if (after != null) {
+                        url {
+                            parameters.append("after", after.toString())
+                        }
+                    }
+                    contentType(ContentType.Application.Json)
+                }
+                if (httpResponse.status.value in 200..299) {
+                    httpResponse.body<List<ChatDTO>>().forEach(onChatsChange)
+                } else if (httpResponse.status.value in 400..499) {
+                    navController.navigate(PageRoutes.SignInPage.route)
+                } else {
+                    errorAction(httpResponse, snackbarHostState, navController)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState, navController)
+            }
+        }
+
+        suspend fun getPreviousChatsRequest(
+            snackbarHostState: SnackbarHostState,
+            onChatsChange: (ChatDTO) -> Unit,
+            navController: NavHostController,
+            before: LocalDateTime?
+        ) {
+            try {
+                val httpResponse: HttpResponse = httpClient.get("$httpHost/chats/previous") {
+                    headers {
+                        header("Authorization", "Bearer ${token?.value?.token}")
+                    }
+                    if (before != null) {
+                        url {
+                            parameters.append("before", before.toString())
+                        }
                     }
                     contentType(ContentType.Application.Json)
                 }
@@ -283,14 +347,96 @@ class MessagesPageRequests {
         suspend fun getChatMessagesRequest(
             chatDTO: ChatDTO?,
             snackbarHostState: SnackbarHostState,
+            cleanMessages: () -> Unit,
             onMessagesChange: (MessageDTO) -> Unit,
-            navController: NavHostController
+            navController: NavHostController,
+            before: LocalDateTime? = null
         ) {
             try {
+                val id = chatDTO?.id
+                if (id == Uuid.NIL || id == null) {
+                    return
+                }
                 val httpResponse: HttpResponse =
-                    httpClient.get("$httpHost/chat/${chatDTO?.id ?: 0}/messages") {
+                    httpClient.get("$httpHost/chat/${chatDTO.id}/messages") {
                         headers {
                             header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        if (before != null) {
+                            url {
+                                parameters.append("before", before.toString())
+                            }
+                        }
+                        contentType(ContentType.Application.Json)
+                    }
+                if (httpResponse.status.value in 200..299) {
+                    cleanMessages()
+                    httpResponse.body<List<MessageDTO>>().forEach(onMessagesChange)
+                } else {
+                    errorAction(httpResponse, snackbarHostState, navController)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState, navController)
+            }
+        }
+
+        @OptIn(ExperimentalUuidApi::class)
+        suspend fun getNextChatMessagesRequest(
+            chatDTO: ChatDTO?,
+            snackbarHostState: SnackbarHostState,
+            onMessagesChange: (MessageDTO) -> Unit,
+            navController: NavHostController,
+            after: LocalDateTime? = null
+        ) {
+            try {
+                val id = chatDTO?.id
+                if (id == Uuid.NIL || id == null) {
+                    return
+                }
+                val httpResponse: HttpResponse =
+                    httpClient.get("$httpHost/chat/${chatDTO.id}/messages/next") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        if (after != null) {
+                            url {
+                                parameters.append("after", after.toString())
+                            }
+                        }
+                        contentType(ContentType.Application.Json)
+                    }
+                if (httpResponse.status.value in 200..299) {
+                    httpResponse.body<List<MessageDTO>>().forEach(onMessagesChange)
+                } else {
+                    errorAction(httpResponse, snackbarHostState, navController)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState, navController)
+            }
+        }
+
+        @OptIn(ExperimentalUuidApi::class)
+        suspend fun getPreviousChatMessagesRequest(
+            chatDTO: ChatDTO?,
+            snackbarHostState: SnackbarHostState,
+            onMessagesChange: (MessageDTO) -> Unit,
+            navController: NavHostController,
+            before: LocalDateTime? = null
+        ) {
+            try {
+                val id = chatDTO?.id
+                if (id == Uuid.NIL || id == null) {
+                    return
+                }
+                val httpResponse: HttpResponse =
+                    httpClient.get("$httpHost/chat/${chatDTO.id}/messages/previous") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        if (before != null) {
+                            url {
+                                parameters.append("before", before.toString())
+                            }
                         }
                         contentType(ContentType.Application.Json)
                     }

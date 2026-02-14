@@ -32,8 +32,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.TooltipDefaults.rememberTooltipPositionProvider
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
@@ -215,7 +216,10 @@ fun loginField(viewModel: SignInViewModel = viewModel { SignInViewModel() }) {
                 val description = "Очистить"
 
                 TooltipBox(
-                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(5.dp),
+                    positionProvider = rememberTooltipPositionProvider(
+                        TooltipAnchorPosition.Above,
+                        5.dp
+                    ),
                     tooltip = {
                         PlainTooltip { Text("Очистить поле логина") }
                     },
@@ -250,7 +254,10 @@ fun passwordField(viewModel: SignInViewModel = viewModel { SignInViewModel() }) 
                     if (viewModel.passwordVisible.value) "Скрыть пароль" else "Показать пароль"
 
                 TooltipBox(
-                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(5.dp),
+                    positionProvider = rememberTooltipPositionProvider(
+                        TooltipAnchorPosition.Above,
+                        5.dp
+                    ),
                     tooltip = {
                         PlainTooltip { Text("Включить/выключить видимость пароля") }
                     },

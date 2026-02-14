@@ -1,9 +1,13 @@
 package ru.ssshteam.potatocoder228.messenger
 
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,7 +23,9 @@ import kotlin.uuid.Uuid
 var datastore: DataStore? = null
 var fileChooser: FileChooser? = null
 var emojis: EmojiDataDTO? = null
-var username: String = ""
+
+@OptIn(ExperimentalUuidApi::class)
+var currentUserId: Uuid = Uuid.NIL
 
 @OptIn(ExperimentalUuidApi::class)
 @Composable
@@ -42,6 +48,7 @@ fun App(viewModel: AppViewModel = viewModel { AppViewModel() }) {
             )
             if (token?.value?.token != null) {
                 defaultRoute = PageRoutes.MessagesPage.route
+                currentUserId = token!!.value.userId
             }
         }
     }
@@ -50,20 +57,34 @@ fun App(viewModel: AppViewModel = viewModel { AppViewModel() }) {
 
         composable(PageRoutes.MessagesPage.route) {
             AppTheme(viewModel.theme.value) {
-                MessagesPage(navController, viewModel.onThemeChange)
+                Surface(Modifier.background(MaterialTheme.colorScheme.background)) {
+                    MessagesPage(navController, viewModel.onThemeChange)
+                }
+            }
+        }
+
+        composable(PageRoutes.SettingsPage.route) {
+            AppTheme(viewModel.theme.value) {
+                Surface(Modifier.background(MaterialTheme.colorScheme.background)) {
+                    SettingsPage(navController, viewModel.onThemeChange)
+                }
             }
         }
 
 
         composable(PageRoutes.SignInPage.route) {
             AppTheme(viewModel.theme.value) {
-                SignInPage(navController, viewModel.onThemeChange)
+                Surface(Modifier.background(MaterialTheme.colorScheme.background)) {
+                    SignInPage(navController, viewModel.onThemeChange)
+                }
             }
         }
 
         composable(PageRoutes.RegistrationPage.route) {
             AppTheme(viewModel.theme.value) {
-                RegistrationPage(navController, viewModel.onThemeChange)
+                Surface(Modifier.background(MaterialTheme.colorScheme.background)) {
+                    RegistrationPage(navController, viewModel.onThemeChange)
+                }
             }
         }
     }
