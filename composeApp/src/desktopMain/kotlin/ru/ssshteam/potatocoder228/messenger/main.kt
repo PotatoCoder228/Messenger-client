@@ -19,6 +19,7 @@ fun main() {
             remember {
                 try {
                     datastore = DataStore()
+                    recorder = DesktopAudioRecorder()
                     fileChooser = DesktopFileChooser(window)
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -27,6 +28,7 @@ fun main() {
                         file.delete()
                     }
                     datastore = DataStore()
+                    recorder = DesktopAudioRecorder()
                     fileChooser = DesktopFileChooser(window)
                 }
             }

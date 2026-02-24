@@ -11,10 +11,8 @@ import kotlin.uuid.Uuid
 @Serializable
 @Immutable
 @JsonIgnoreUnknownKeys
-data class SearchObjectDTO @OptIn(ExperimentalUuidApi::class) constructor(
-    val type: String = "",
-    val name: String = "",
-    val description: String = "",
+data class ChatInfoDTO @OptIn(ExperimentalUuidApi::class) constructor(
     val id: Uuid = Uuid.NIL,
-    val logoId: Uuid = Uuid.NIL,
+    val name: String = "",
+    val members: List<UserInChatDTO> = listOf<UserInChatDTO>(),
 )

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
@@ -26,12 +27,12 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults.rememberTooltipPositionProvider
@@ -50,6 +51,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import ru.ssshteam.potatocoder228.messenger.viewmodels.SignInViewModel
+
+@Composable
+expect fun WebCameraView(
+    modifier: Modifier
+)
 
 @Composable
 fun SignInPage(
@@ -80,6 +86,30 @@ fun SignInPage(
             Modifier.padding(innerPadding).fillMaxSize().onPreviewKeyEvent {
                 viewModel.onEnterAction(it, navController)
             }.also { viewModel.cardBoxModifier.value = it }
+        }
+        if (getPlatform().name == "Java") {
+//            WebCameraView(
+//                Modifier.padding(innerPadding)
+//                    .requiredSize(400.dp)
+//            )
+            AudioPlayerView(
+                Modifier.padding(innerPadding).width(400.dp).heightIn(40.dp, 100.dp),
+                180f,
+                {},
+                {},
+                {})
+//            val state = remember { MutableInteractionSource() }
+//            val isHovered = state.collectIsHoveredAsState()
+//            IconButton(
+//                {},
+//                Modifier.padding(innerPadding).hoverable(state).defaultMinSize(0.dp, 0.dp).requiredSize(30.dp)
+//            ) {
+//                Icon(
+//                    Lucide.Heart,
+//                    contentDescription = "Like",
+//                    tint = if (isHovered.value) Color.Red else Color.Gray
+//                )
+//            }
         }
         SignInForm(
             navController
@@ -203,7 +233,7 @@ fun fieldsCard(
 @Composable
 fun loginField(viewModel: SignInViewModel = viewModel { SignInViewModel() }) {
     viewModel.loginFieldModifier.value?.let {
-        TextField(
+        OutlinedTextField(
             modifier = it,
             value = viewModel.loginInput.value,
             onValueChange = { viewModel.loginInput.value = it },
@@ -237,7 +267,7 @@ fun loginField(viewModel: SignInViewModel = viewModel { SignInViewModel() }) {
 @Composable
 fun passwordField(viewModel: SignInViewModel = viewModel { SignInViewModel() }) {
     viewModel.passwordFieldModifier.value?.let {
-        TextField(
+        OutlinedTextField(
             modifier = it,
             value = viewModel.passwordInput.value,
             onValueChange = { viewModel.passwordInput.value = it },
@@ -269,7 +299,8 @@ fun passwordField(viewModel: SignInViewModel = viewModel { SignInViewModel() }) 
                         Icon(imageVector = image, description)
                     }
                 }
-            })
+            }
+        )
     }
 }
 

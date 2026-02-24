@@ -1,6 +1,6 @@
 [versions]
 adaptive = "1.2.0"
-agp = "8.10.0"
+agp = "8.10.1"
 android-compileSdk = "35"
 android-minSdk = "24"
 android-targetSdk = "35"
@@ -14,10 +14,11 @@ androidx-testExt = "1.3.0"
 coilCompose = "3.3.0"
 coilNetworkOkhttp = "3.3.0"
 composeHotReload = "1.0.0-alpha09"
-composeMultiplatform = "1.10.1"
+composeMultiplatform = "1.11.0-alpha02"
 junit = "4.13.2"
 kotlin = "2.2.20"
 kotlinx-coroutines = "1.10.2"
+kotlinxCollectionsImmutable = "0.4.0"
 kotlinxCoroutinesSwing = "1.8.0"
 krossbowWebsocketKtor = "9.3.0"
 ktorClientCore = "3.1.3"
@@ -25,7 +26,6 @@ lifecycleViewmodelCompose = "2.9.0"
 lifecycleViewmodelComposeVersion = "2.9.6"
 logbackClassic = "1.3.15"
 material-icons = "1.7.3"
-material-material = "1.9.0"
 material3 = "1.9.0"
 navigation = "2.9.1"
 sqlite = "2.6.2"
@@ -35,6 +35,7 @@ runtimeAndroid = "1.10.3"
 kotlinxDatetime = "0.7.1"
 
 androidx-paging="3.4.1"
+webcamCapture = "0.3.12"
 [libraries]
 adaptive = { module = "org.jetbrains.compose.material3.adaptive:adaptive", version.ref = "adaptive" }
 androidx-adaptive-navigation = { module = "org.jetbrains.compose.material3.adaptive:adaptive-navigation", version.ref = "adaptive" }
@@ -50,6 +51,7 @@ androidx-activity-compose = { module = "androidx.activity:activity-compose", ver
 androidx-paging = { module = "androidx.paging:paging-compose", version.ref = "androidx-paging" }
 androidx-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
+kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "kotlinxCollectionsImmutable" }
 kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 androidx-material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "material-icons" }
 # androidx-material-material = { module = "org.jetbrains.compose.material:material", version.ref = "material-material" }
@@ -67,6 +69,7 @@ lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifec
 androidx-runtime-android = { group = "androidx.compose.runtime", name = "runtime-android", version.ref = "runtimeAndroid" }
 kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logbackClassic" }
+webcam-capture = { module = "com.github.sarxos:webcam-capture", version.ref = "webcamCapture" }
 # kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 # junit = { module = "junit:junit", version.ref = "junit" }
 # androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }

@@ -19,7 +19,9 @@ import kotlinx.io.RawSink
 import ru.ssshteam.potatocoder228.messenger.PageRoutes
 import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
+import ru.ssshteam.potatocoder228.messenger.dto.ChatInfoDTO
 import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
+import ru.ssshteam.potatocoder228.messenger.dto.SearchDTO
 import ru.ssshteam.potatocoder228.messenger.dto.UserInChatDTO
 import ru.ssshteam.potatocoder228.messenger.httpClient
 import ru.ssshteam.potatocoder228.messenger.httpHost
@@ -523,6 +525,122 @@ class MessagesPageRequests {
                     }
                 if (httpResponse.status.value in 200..299) {
                     httpResponse.body<List<MessageDTO>>().forEach(onMessagesChange)
+                } else {
+                    errorAction(httpResponse, snackbarHostState, navController)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState, navController)
+            }
+        }
+
+        @OptIn(ExperimentalUuidApi::class)
+        suspend fun getChatInfoRequest(
+            chatDTO: ChatDTO?,
+            snackbarHostState: SnackbarHostState,
+            navController: NavHostController
+        ): ChatInfoDTO {
+            try {
+                val httpResponse: HttpResponse =
+                    httpClient.get("$httpHost/chat/${chatDTO?.id}/info") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        contentType(ContentType.Application.Json)
+                    }
+                if (httpResponse.status.value in 200..299) {
+                    return httpResponse.body()
+                } else {
+                    errorAction(httpResponse, snackbarHostState, navController)
+                    return ChatInfoDTO()
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState, navController)
+                return ChatInfoDTO()
+            }
+        }
+
+        suspend fun searchChatsRequest(
+            pattern: String,
+            snackbarHostState: SnackbarHostState,
+            onResultChange: (SearchDTO) -> Unit,
+            navController: NavHostController,
+            page: Long = 0
+        ) {
+            try {
+                val httpResponse: HttpResponse = httpClient.get("$httpHost/chat/search") {
+                    headers {
+                        header("Authorization", "Bearer ${token?.value?.token}")
+                    }
+                    url {
+                        parameters.append("pattern", pattern)
+                        parameters.append("page", page.toString())
+                    }
+
+                    contentType(ContentType.Application.Json)
+                }
+                if (httpResponse.status.value in 200..299) {
+                    httpResponse.body<List<SearchDTO>>().forEach(onResultChange)
+                } else {
+                    errorAction(httpResponse, snackbarHostState, navController)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState, navController)
+            }
+        }
+
+        suspend fun searchUsersRequest(
+            pattern: String,
+            snackbarHostState: SnackbarHostState,
+            onResultChange: (SearchDTO) -> Unit,
+            navController: NavHostController,
+            page: Long = 0
+        ) {
+            try {
+                val httpResponse: HttpResponse = httpClient.get("$httpHost/user/search") {
+                    headers {
+                        header("Authorization", "Bearer ${token?.value?.token}")
+                    }
+                    url {
+                        parameters.append("page", page.toString())
+                        parameters.append("pattern", pattern)
+                    }
+
+                    contentType(ContentType.Application.Json)
+                }
+                if (httpResponse.status.value in 200..299) {
+                    httpResponse.body<List<SearchDTO>>().forEach(onResultChange)
+                } else {
+                    errorAction(httpResponse, snackbarHostState, navController)
+                }
+            } catch (e: Throwable) {
+                exceptionAction(e, snackbarHostState, navController)
+            }
+        }
+
+        @OptIn(ExperimentalUuidApi::class)
+        suspend fun searchMessagesRequest(
+            pattern: String,
+            chat: ChatDTO?,
+            snackbarHostState: SnackbarHostState,
+            onResultChange: (SearchDTO) -> Unit,
+            navController: NavHostController,
+            page: Long = 0
+        ) {
+            try {
+                val httpResponse: HttpResponse =
+                    httpClient.get("$httpHost/chat/${chat?.id}/message/search") {
+                        headers {
+                            header("Authorization", "Bearer ${token?.value?.token}")
+                        }
+                        url {
+                            parameters.append("page", page.toString())
+                            parameters.append("pattern", pattern)
+                        }
+
+                        contentType(ContentType.Application.Json)
+                    }
+                if (httpResponse.status.value in 200..299) {
+                    httpResponse.body<List<SearchDTO>>().forEach(onResultChange)
                 } else {
                     errorAction(httpResponse, snackbarHostState, navController)
                 }

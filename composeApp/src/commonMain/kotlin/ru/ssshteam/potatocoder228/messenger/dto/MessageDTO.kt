@@ -1,6 +1,6 @@
 package ru.ssshteam.potatocoder228.messenger.dto
 
-import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
@@ -13,7 +13,7 @@ import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-@Immutable
+@Stable
 @JsonIgnoreUnknownKeys
 data class MessageDTO @OptIn(ExperimentalUuidApi::class) constructor(
     var id: Uuid = Uuid.NIL,

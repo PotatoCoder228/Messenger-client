@@ -21,6 +21,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 var datastore: DataStore? = null
+var recorder: AudioRecorder? = null
 var fileChooser: FileChooser? = null
 var emojis: EmojiDataDTO? = null
 

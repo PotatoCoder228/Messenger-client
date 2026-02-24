@@ -60,17 +60,27 @@ class DesktopFileChooser(window: ComposeWindow) : FileChooser {
         fileDialog.isMultipleMode = true
         val filesList:
                 SnapshotStateList<File> = mutableStateListOf()
-        fileDialog.files.forEach { file -> filesList.add(File(file.absolutePath, file.name, file.extension, file.totalSpace, "file://${file.path}")) }
+        fileDialog.files.forEach { file ->
+            filesList.add(
+                File(
+                    file.absolutePath,
+                    file.name,
+                    file.extension,
+                    file.totalSpace,
+                    "file://${file.path}"
+                )
+            )
+        }
         return filesList
     }
 
-     override suspend fun selectDownloadingFilepath(filename: String): String{
+    override suspend fun selectDownloadingFilepath(filename: String): String {
         val fileDialog = FileDialog(window)
         fileDialog.mode = SAVE
         fileDialog.file = filename
         fileDialog.size = Dimension(500, 500)
         fileDialog.isVisible = true
         fileDialog.isMultipleMode = false
-        return fileDialog.directory+ fileDialog.file
+        return fileDialog.directory + fileDialog.file
     }
 }

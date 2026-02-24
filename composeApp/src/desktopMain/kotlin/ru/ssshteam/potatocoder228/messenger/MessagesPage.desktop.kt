@@ -101,7 +101,7 @@ actual fun EmojiPicker(
         EmojiPickerRoutes.ObjectsPage.route to Pair("⛔", indexGen.next()),
         EmojiPickerRoutes.FlagsPage.route to Pair("\uD83C\uDFC1", indexGen.next()),
     )
-    val emojiInput = remember{
+    val emojiInput = remember {
         mutableStateOf("")
     }
     Column(modifier = modifier.width(250.dp)) {

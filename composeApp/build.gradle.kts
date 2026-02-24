@@ -1,3 +1,4 @@
+import com.android.utils.Environment
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -61,17 +62,15 @@ kotlin {
             implementation(libs.kotlin.stdlib.jdk8)
         }
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
             implementation(compose.ui)
+            implementation("com.composables:icons-lucide-cmp:2.2.1")
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.androidx.paging)
             implementation(libs.androidx.material.icons.extended)
-            //implementation(libs.androidx.material.material)
+            implementation(libs.kotlinx.collections.immutable)
             implementation(libs.androidx.navigation.navigation.compose)
             implementation(libs.androidx.adaptive.layout)
             implementation(libs.androidx.adaptive.navigation)
@@ -98,9 +97,10 @@ kotlin {
             implementation(libs.kotlin.test)
         }
         desktopMain.dependencies {
+            implementation("org.bytedeco:javacv-platform:1.5.13")
+            implementation(libs.webcam.capture)
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
-            implementation(libs.kotlin.stdlib.jdk8)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.websockets)
@@ -172,6 +172,7 @@ compose.desktop {
             obfuscate.set(true)
             optimize.set(true)
             configurationFiles.from(project.file("proguard-rules.pro"))
+            version.set("7.5.0")
         }
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Exe)

@@ -31,10 +31,11 @@ import ru.ssshteam.potatocoder228.messenger.UiState
 import ru.ssshteam.potatocoder228.messenger.client
 import ru.ssshteam.potatocoder228.messenger.dto.ChatCreateDTO
 import ru.ssshteam.potatocoder228.messenger.dto.ChatDTO
+import ru.ssshteam.potatocoder228.messenger.dto.ChatInfoDTO
 import ru.ssshteam.potatocoder228.messenger.dto.MessageDTO
 import ru.ssshteam.potatocoder228.messenger.dto.NotificationDTO
 import ru.ssshteam.potatocoder228.messenger.dto.OperationDTO
-import ru.ssshteam.potatocoder228.messenger.dto.SearchObjectDTO
+import ru.ssshteam.potatocoder228.messenger.dto.SearchDTO
 import ru.ssshteam.potatocoder228.messenger.dto.UserInChatDTO
 import ru.ssshteam.potatocoder228.messenger.dto.internal.FileView
 import ru.ssshteam.potatocoder228.messenger.internal.File
@@ -49,6 +50,8 @@ import ru.ssshteam.potatocoder228.messenger.token
 import ru.ssshteam.potatocoder228.messenger.wsHost
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -66,6 +69,8 @@ class GlobalViewModel : ViewModel() {
     val chatNameInput = mutableStateOf("")
     var key = mutableStateOf(0)
 
+    var searchBarInput = mutableStateOf("")
+
     var usersMap = mutableStateListOf(mutableStateOf(Pair(key.value, "")))
 
     @OptIn(ExperimentalAtomicApi::class)
@@ -80,7 +85,6 @@ class GlobalViewModel : ViewModel() {
 
     val chatsListMutex = Mutex()
     val chats = mutableStateListOf<ChatDTO?>()
-    val objectsSearchResult = mutableStateListOf<SearchObjectDTO?>()
 
     val navRailVisible = mutableStateOf(false)
 
@@ -89,6 +93,10 @@ class GlobalViewModel : ViewModel() {
     val messages = mutableStateListOf<MessageDTO?>()
     val chatProfiles = mutableStateListOf<UserInChatDTO?>()
     val threadMessages = mutableStateListOf<MessageDTO?>()
+    var selectedFiles = mutableStateListOf<File>()
+    val searchBarChats = mutableStateListOf<SearchDTO?>()
+    val searchBarMessages = mutableStateListOf<SearchDTO?>()
+    val searchBarUsers = mutableStateListOf<SearchDTO?>()
 
     val selectedChatMembers = mutableIntStateOf(0)
     val selectedChatMembersOnline = mutableIntStateOf(0)
@@ -130,7 +138,20 @@ class GlobalViewModel : ViewModel() {
 
     val chatsListModified = mutableStateOf(false)
 
-    val chatProfileOpened = mutableStateOf(false)
+    var chatProfileOpened = mutableStateOf(false)
+
+    @OptIn(ExperimentalUuidApi::class)
+    var chatInfo = mutableStateOf(ChatInfoDTO())
+
+    val isRecording = mutableStateOf(false)
+
+    @OptIn(ExperimentalTime::class)
+    val recordingTime = mutableStateOf(Clock.System.now())
+
+    val isAudioMode = mutableStateOf(true)
+
+    var verticalOffset = mutableStateOf(0f)
+    var horizontalOffset = mutableStateOf(0f)
 
     fun loadChats(navController: NavHostController) {
         viewModelScope.launch {
@@ -198,6 +219,69 @@ class GlobalViewModel : ViewModel() {
     }
 
     @OptIn(ExperimentalUuidApi::class)
+    fun searchChats(
+        pattern: String,
+        navController: NavHostController,
+    ) {
+        println("search chat $pattern")
+        viewModelScope.launch {
+            searchBarChats.clear()
+            MessagesPageRequests.searchChatsRequest(
+                pattern,
+                mainSnackbarHostState.value,
+                { e ->
+                    if (!searchBarChats.contains(e)) {
+                        searchBarChats.add(e)
+                    }
+                },
+                navController
+            )
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    fun searchUsers(
+        pattern: String,
+        navController: NavHostController,
+    ) {
+        println("search user $pattern")
+        viewModelScope.launch {
+            searchBarUsers.clear()
+            MessagesPageRequests.searchUsersRequest(
+                pattern,
+                mainSnackbarHostState.value,
+                { e ->
+                    if (!searchBarUsers.contains(e)) {
+                        searchBarUsers.add(e)
+                    }
+                },
+                navController
+            )
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    fun searchMessages(
+        pattern: String,
+        navController: NavHostController,
+    ) {
+        viewModelScope.launch {
+            searchBarMessages.clear()
+            MessagesPageRequests.searchMessagesRequest(
+                pattern,
+                selectedChat.value,
+                mainSnackbarHostState.value,
+                { e ->
+                    if (!searchBarMessages.contains(e)) {
+                        searchBarMessages.add(e)
+                    }
+                },
+                navController
+            )
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
     fun showChatMessages(
         chatDTO: ChatDTO?,
         navController: NavHostController,
@@ -216,6 +300,7 @@ class GlobalViewModel : ViewModel() {
 
                 }
                 detailPaneState.value = UiState.Loading
+                println("Loading")
                 MessagesPageRequests.getChatMessagesRequest(
                     chatDTO, mainSnackbarHostState.value, { messages.clear() },
                     { message ->
@@ -998,6 +1083,17 @@ class GlobalViewModel : ViewModel() {
                     }
                 }
             }
+        }
+    }
+
+    fun loadChatInfo(
+        chat: ChatDTO?, snackbarHostState: SnackbarHostState,
+        navController: NavHostController
+    ) {
+        viewModelScope.launch {
+            chatInfo.value =
+                MessagesPageRequests.getChatInfoRequest(chat, snackbarHostState, navController)
+            println(chatInfo.value.members.size)
         }
     }
 }

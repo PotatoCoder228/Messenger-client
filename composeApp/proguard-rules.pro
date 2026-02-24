@@ -1,3 +1,9 @@
+-dontoptimize
+-dontobfuscate
+-ignorewarnings
+-libraryjars  <java.home>/jmods/java.base.jmod(!**.jar;!module-info.class) # for linux
+-dontwarn androidx.compose.material.**
+-keep class androidx.compose.material3.** { *; }
 -keep class io.ktor.network.** { *; }
 -keep class io.ktor.client.** { *; }
 -keep class io.ktor.serialization.kotlinx.** { *; }
@@ -5,8 +11,12 @@
 -keep class ru.ssshteam.potatocoder228.messenger.** { *; }
 -keep class androidx.sqlite.** { *; }
 -keep class android.database.** { *; }
+-keep class androidx.** { *; }
 -keep class org.hildan.krossbow.** { *; }
--ignorewarnings
+-keep class com.github.sarxos.** { *; }
+-keep class javax.imageio.** { *; }
+-keep class java.awt.** { *; }
+-keep class org.bridj.** { *; }
 -keepclasseswithmembernames,includedescriptorclasses class * {
     native <methods>;
 }

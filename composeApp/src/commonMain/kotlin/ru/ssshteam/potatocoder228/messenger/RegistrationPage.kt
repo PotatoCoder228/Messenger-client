@@ -25,12 +25,12 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults.rememberTooltipPositionProvider
@@ -201,7 +201,7 @@ fun regFieldsCard(
 @Composable
 fun regLoginField(viewModel: RegistrationViewModel = viewModel { RegistrationViewModel() }) {
     viewModel.loginFieldModifier.value?.let {
-        TextField(
+        OutlinedTextField(
             modifier = it,
             value = viewModel.loginInput.value,
             onValueChange = { viewModel.loginInput.value = it },
@@ -234,7 +234,7 @@ fun regLoginField(viewModel: RegistrationViewModel = viewModel { RegistrationVie
 @Composable
 fun regPasswordField(viewModel: RegistrationViewModel = viewModel { RegistrationViewModel() }) {
     viewModel.passwordFieldModifier.value?.let {
-        TextField(
+        OutlinedTextField(
             modifier = it,
             value = viewModel.passwordInput.value,
             onValueChange = { viewModel.passwordInput.value = it },
@@ -274,7 +274,7 @@ fun regPasswordField(viewModel: RegistrationViewModel = viewModel { Registration
 @Composable
 fun regRepeatPasswordField(viewModel: RegistrationViewModel = viewModel { RegistrationViewModel() }) {
     viewModel.repeatPasswordFieldModifier.value?.let {
-        TextField(
+        OutlinedTextField(
             modifier = it,
             value = viewModel.repeatPasswordInput.value,
             onValueChange = { viewModel.repeatPasswordInput.value = it },

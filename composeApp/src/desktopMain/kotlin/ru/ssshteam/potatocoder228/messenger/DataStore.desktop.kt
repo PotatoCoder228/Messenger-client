@@ -7,7 +7,10 @@ import androidx.sqlite.driver.bundled.SQLITE_OPEN_READWRITE
 import androidx.sqlite.execSQL
 
 actual class DataStore actual constructor() : AutoCloseable {
-    private var databaseConnection = BundledSQLiteDriver().open("Cookie.db",  SQLITE_OPEN_CREATE or SQLITE_OPEN_READWRITE or SQLITE_OPEN_NOMUTEX)
+    private var databaseConnection = BundledSQLiteDriver().open(
+        "Cookie.db",
+        SQLITE_OPEN_CREATE or SQLITE_OPEN_READWRITE or SQLITE_OPEN_NOMUTEX
+    )
 
     init {
         //databaseConnection.prepare("PRAGMA journal_mode=DELETE").step()
